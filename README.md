@@ -1,89 +1,47 @@
-# Nuvytrix — Frontend
+# Nuvytrix Frontend
 
-Angular client for **Nuvytrix**, a personal platform for monitoring and administering a home
-network: device discovery, firewall log analysis, availability monitoring, DNS statistics and
-firewall rule tracking.
+Angular client for [nuvytrix-backend](https://github.com/aleksa0206/nuvytrix-backend), the dashboard I use for my home network: devices, the router's firewall log, ping and DNS checks, and the firewall rules I want on the router.
 
-The REST API, database and deployment files live in the separate `nuvytrix-backend` repository.
+## Screens
 
-## Principles
+- Overview: is the router up, how many devices are online, new devices, recent firewall activity, failing checks
+- Devices: everything nmap found, search and filters, a details page with custom name, type and notes, scan history
+- Firewall: events with filters and details, insights (repeated denials, accepted inbound traffic, most denied ports), log upload with a report of skipped and rejected lines, and rules with step-by-step instructions for applying them on the router
+- Monitoring: ping and DNS targets, latency, packet loss, uptime and a latency chart
+- DNS: AdGuard Home status and stats
+- Settings: what works on my hardware and what doesn't, current config, audit log
 
-- **Only real data.** Every number comes from the API. When something has not been measured,
-  imported or configured, the UI says so ("Not checked yet", "Not configured", "Requires hardware")
-  instead of showing placeholders or zeros. Charts break where no measurement exists.
-- **Observations, not verdicts.** Firewall insights describe patterns and carry the API's
-  disclaimer. Nothing is labelled an attack.
-- **No pretend control of the router.** Firewall rules are intended state with manual instructions.
-  "Marked applied" is the administrator's statement and is shown as unverified.
+If something hasn't been measured or set up yet, the page says so ("Not checked yet", "Not configured", "Requires hardware") instead of showing zeros. Charts leave gaps where there's no data.
 
-## Stack
+## Running locally
 
-Angular 22 (standalone components, signals, `httpResource`, reactive forms, functional
-interceptors), SCSS with design tokens, Vitest, ESLint (angular-eslint) and Prettier. No UI or
-state-management libraries.
+```bash
+npm install
+npm start          # http://localhost:4200
+npm test
+npm run lint
+npm run build
+```
+
+The backend needs to run on `http://127.0.0.1:4000`. The app always calls `/api` on its own origin: in development `proxy.conf.json` forwards it to the backend, in production nginx does. That keeps the session cookie first-party, so there's no CORS setup and no frontend environment config.
 
 ## Structure
 
 ```
 src/app/
-  core/
-    api/        API base path, query params, error normalization (ApiError)
-    auth/       session state, guards, 401 interceptor
-    models/     API response types
-    services/   all HTTP access (components never call HttpClient directly)
-    polling.ts  refresh while the tab is visible
-  shared/
-    ui/         state badge, page header, pagination, empty/error/loading states,
-                confirmation dialog, SVG line chart
-    util/       formatting helpers and pipes
-  layout/       app shell (sidebar, responsive navigation), theme
-  features/     overview, devices, firewall (events, insights, imports, rules),
-                monitoring, dns, settings, auth
-src/styles/     tokens, base styles, shared component classes
+  core/       API helpers and error handling, auth (session, guards, interceptor), models, services
+  shared/     UI components (status badge, pagination, empty/error states, confirm dialog, chart) and formatting
+  layout/     shell with sidebar, theme
+  features/   overview, devices, firewall, monitoring, dns, settings, auth
+src/styles/   tokens, base styles, shared classes
 ```
 
-Pages read data through resource factories in `core/services` (for example
-`DevicesService.listResource(query)`), which re-request automatically when the signals they depend
-on change.
+Components never call `HttpClient` directly. Pages get their data from resource methods in `core/services` (built on `httpResource`), which reload by themselves when the filters they depend on change.
 
-## Visual language
+## Design
 
-Dark theme by default, with a light theme toggle. Neutral grey surfaces, one blue accent, and
-status colors (green, amber, red, grey) reserved for states, always paired with a text label.
-Dense 32 px table rows, monospace for addresses and ports, no gradients, glass effects or
-decorative icons. Design tokens are in `src/styles/_tokens.scss`.
-
-## Development
-
-Requirements: Node.js 22+ and a running backend (see `nuvytrix-backend`).
-
-```bash
-npm install
-npm start            # http://localhost:4200, /api is proxied to http://127.0.0.1:4000
-```
-
-The app always calls the same-origin path `/api`. In development `proxy.conf.json` forwards it to
-the backend; in production nginx does. The session cookie therefore stays first-party, and there
-is no CORS configuration. There are no frontend environment variables or secrets.
-
-```bash
-npm test             # Vitest
-npm run lint
-npm run format:check
-npm run build
-```
+Dark theme by default with a light one in the sidebar. Grey surfaces, one blue accent, and green, amber and red only for status, always with a text label next to the color. Dense tables, monospace for IPs and ports. All tokens are in `src/styles/_tokens.scss`.
 
 ## Deployment
 
-The production image builds the app and serves it with nginx, which also proxies `/api` and
-`/api-docs` to the backend (`API_UPSTREAM`) and sets security headers (CSP, frame denial,
-no-sniff). It is built and started by the backend repository's `docker-compose.yml`, which expects
-this repository checked out next to it:
-
-```
-~/nuvytrix/
-  nuvytrix-backend/     docker compose up -d --build
-  nuvytrix-frontend/
-```
-
-See the backend README for the full deployment, backup and update instructions.
+The Docker image builds the app and serves it with nginx, which also proxies `/api` and `/api-docs` to the backend and adds the security headers. It's started by `docker-compose.yml` in the backend repository, which expects this repo next to it. Setup steps are in the backend README.
