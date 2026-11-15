@@ -19,6 +19,9 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      # The CSP blocks inline scripts, so stylesheets must not depend on one to switch from media=print.
+      - name: Stylesheets load without inline script
+        run: "! grep -q 'media="print"' dist/nuvytrix-frontend/browser/index.html"
 
   docker:
     runs-on: ubuntu-latest
