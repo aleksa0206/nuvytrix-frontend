@@ -1,0 +1,160 @@
+@if (summary.isLoading() || insights.isLoading()) {
+  <app-loading />
+}
+@if (summary.error(); as error) {
+  <app-load-error [error]="error" (retry)="summary.reload()" />
+}
+
+@if (summary.hasValue() && insights.hasValue()) {
+  @let s = summary.value();
+  @let i = insights.value();
+  @if (!s.hasData || !i.hasData) {
+    <section class="panel">
+      <app-empty-state
+        title="Nothing to analyse yet"
+        description="Insights are computed from imported firewall log entries. Import a log file first."
+      >
+        <a class="btn btn--primary" routerLink="../imports">Import log</a>
+      </app-empty-state>
+    </section>
+  } @else {
+    <p class="notice notice--info">{{ i.disclaimer }}</p>
+
+    <section class="panel">
+      <header class="panel__header">
+        <h2>Events per hour</h2>
+        <span class="text-tertiary num"
+          >{{ s.range.from | dateTime }} – {{ s.range.to | dateTime }}</span
+        >
+      </header>
+      <div class="panel__body stack">
+        <div
+          class="timeline"
+          role="img"
+          [attr.aria-label]="s.denied + ' denied and ' + s.accepted + ' accepted events'"
+        >
+          @for (bar of bars(); track bar.bucket) {
+            <span class="bar" [title]="(bar.bucket | dateTime) + ': ' + bar.title">
+              <span class="accepted" [style.height.%]="bar.accepted"></span>
+              <span class="denied" [style.height.%]="bar.denied"></span>
+            </span>
+          }
+        </div>
+        <div class="legend">
+          <span>Denied: {{ s.denied | num }}</span>
+          <span>Accepted: {{ s.accepted | num }}</span>
+          <span>All imported events: {{ s.totalEvents | num }}</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <header class="panel__header">
+        <h2>Repeated denied connections</h2>
+        <span class="text-tertiary">20 or more denied events from one source</span>
+      </header>
+      @if (i.repeatedDeniedSources.length === 0) {
+        <app-empty-state title="No source reached the threshold in this period" />
+      } @else {
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">Source</th>
+                <th scope="col" class="align-right">Events</th>
+                <th scope="col" class="align-right">Ports</th>
+                <th scope="col">Direction</th>
+                <th scope="col">Last seen</th>
+                <th scope="col">Observation</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of i.repeatedDeniedSources; track row.sourceIp) {
+                <tr>
+                  <td class="mono">
+                    <a routerLink="../events">{{ row.sourceIp }}</a>
+                  </td>
+                  <td class="align-right num">{{ row.events | num }}</td>
+                  <td class="align-right num">{{ row.distinctPorts }}</td>
+                  <td class="text-secondary">{{ directions(row.directions) }}</td>
+                  <td>{{ row.lastSeen | dateTime }}</td>
+                  <td class="interpretation">{{ row.interpretation }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+
+    <div class="grid">
+      <section class="panel">
+        <header class="panel__header"><h2>Accepted inbound traffic</h2></header>
+        @if (i.acceptedInbound.length === 0) {
+          <app-empty-state title="No inbound traffic from the internet was accepted" />
+        } @else {
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th scope="col">Destination</th>
+                  <th scope="col">Proto</th>
+                  <th scope="col" class="align-right">Events</th>
+                  <th scope="col" class="align-right">Sources</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of i.acceptedInbound; track $index) {
+                  <tr>
+                    <td class="mono">
+                      {{ row.destinationIp
+                      }}{{ row.destinationPort === null ? '' : ':' + row.destinationPort }}
+                    </td>
+                    <td>{{ row.protocol }}</td>
+                    <td class="align-right num">{{ row.events | num }}</td>
+                    <td class="align-right num">{{ row.distinctSources }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <p class="panel__body text-secondary">{{ i.acceptedInbound[0].interpretation }}</p>
+        }
+      </section>
+
+      <section class="panel">
+        <header class="panel__header"><h2>Most denied inbound ports</h2></header>
+        @if (i.topDeniedInboundPorts.length === 0) {
+          <app-empty-state title="No denied inbound traffic with ports" />
+        } @else {
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th scope="col">Port</th>
+                  <th scope="col">Proto</th>
+                  <th scope="col" class="align-right">Events</th>
+                  <th scope="col" class="align-right">Sources</th>
+                  <th scope="col">Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of i.topDeniedInboundPorts; track $index) {
+                  <tr>
+                    <td class="mono">{{ row.destinationPort }}</td>
+                    <td>{{ row.protocol }}</td>
+                    <td class="align-right num">{{ row.events | num }}</td>
+                    <td class="align-right num">{{ row.distinctSources }}</td>
+                    <td class="text-tertiary">
+                      {{ row.ephemeral ? 'Client port range (likely replies)' : '' }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+    </div>
+  }
+}

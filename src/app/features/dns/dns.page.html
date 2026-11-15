@@ -1,0 +1,120 @@
+<div class="page">
+  <app-page-header
+    title="DNS"
+    description="Query and blocking statistics from AdGuard Home. Nothing is shown until a DNS provider is connected."
+  />
+
+  @if (status.isLoading()) {
+    <app-loading />
+  }
+  @if (status.error(); as error) {
+    <app-load-error [error]="error" (retry)="status.reload()" />
+  }
+
+  @if (status.hasValue()) {
+    @let s = status.value();
+    @if (!s.configured) {
+      <section class="panel">
+        <header class="panel__header">
+          <h2>AdGuard Home</h2>
+          <app-state-badge state="not_configured" />
+        </header>
+        <div class="panel__body stack">
+          <p class="text-secondary">
+            No DNS filtering service is connected, so there are no DNS statistics to show.
+          </p>
+          <ol class="steps">
+            <li>Install AdGuard Home on the server (for example as another Docker container).</li>
+            <li>Point the router's DHCP DNS setting, or individual devices, at the server.</li>
+            <li>
+              Set ADGUARD_URL, ADGUARD_USERNAME and ADGUARD_PASSWORD in the API environment and
+              restart it.
+            </li>
+          </ol>
+        </div>
+      </section>
+    } @else if (!s.reachable) {
+      <section class="panel">
+        <header class="panel__header">
+          <h2>AdGuard Home</h2>
+          <app-state-badge state="error" label="Unreachable" />
+        </header>
+        <p class="panel__body text-secondary">{{ s.error }}</p>
+      </section>
+    } @else {
+      <section class="panel">
+        <header class="panel__header">
+          <h2>AdGuard Home {{ s.version }}</h2>
+          <app-state-badge
+            [state]="s.protectionEnabled ? 'operational' : 'warning'"
+            [label]="s.protectionEnabled ? 'Protection on' : 'Protection off'"
+          />
+        </header>
+        <div class="panel__body stack">
+          @if (stats.hasValue()) {
+            @let st = stats.value();
+            <dl class="figures">
+              <div>
+                <dt>Queries</dt>
+                <dd class="num">{{ st.totalQueries | num }}</dd>
+              </div>
+              <div>
+                <dt>Blocked by filters</dt>
+                <dd class="num">{{ st.blockedByFilters | num }}</dd>
+              </div>
+              <div>
+                <dt>Blocked share</dt>
+                <dd class="num">
+                  {{ st.blockedPercent === null ? '—' : st.blockedPercent + '%' }}
+                </dd>
+              </div>
+              <div>
+                <dt>Avg processing</dt>
+                <dd class="num">{{ st.avgProcessingMs }} ms</dd>
+              </div>
+            </dl>
+            <p class="text-tertiary">
+              Period reported by AdGuard Home (statistics retention, in {{ st.period }}).
+            </p>
+          } @else if (stats.error(); as error) {
+            <app-load-error [error]="error" (retry)="stats.reload()" />
+          }
+        </div>
+      </section>
+
+      @if (stats.hasValue()) {
+        @let st = stats.value();
+        <div class="lists">
+          @for (
+            list of [
+              { title: 'Top queried domains', items: st.topQueriedDomains },
+              { title: 'Top blocked domains', items: st.topBlockedDomains },
+              { title: 'Top clients', items: st.topClients },
+            ];
+            track list.title
+          ) {
+            <section class="panel">
+              <header class="panel__header">
+                <h2>{{ list.title }}</h2>
+              </header>
+              @if (list.items.length === 0) {
+                <app-empty-state title="No data yet" />
+              } @else {
+                <table class="table">
+                  <tbody>
+                    @for (item of list.items; track item.name) {
+                      <tr>
+                        <td class="mono">{{ item.name }}</td>
+                        <td class="align-right num">{{ item.count | num }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </section>
+          }
+        </div>
+      }
+    }
+  }
+</div>

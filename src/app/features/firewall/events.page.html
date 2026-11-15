@@ -1,0 +1,239 @@
+@if (facets.hasValue()) {
+  @let f = facets.value();
+  <section class="panel" aria-label="Filters">
+    <div class="panel__body filters">
+      @if (f.actions.length > 1) {
+        <div class="field">
+          <label for="f-action">Action</label>
+          <select
+            id="f-action"
+            class="select"
+            [value]="query().action ?? ''"
+            (change)="setFilter('action', $any($event.target).value)"
+          >
+            <option value="">All</option>
+            @for (action of f.actions; track action) {
+              <option [value]="action">{{ action === 'deny' ? 'Denied' : 'Allowed' }}</option>
+            }
+          </select>
+        </div>
+      }
+      @if (f.directions.length > 0) {
+        <div class="field">
+          <label for="f-flow">Flow</label>
+          <select
+            id="f-flow"
+            class="select"
+            [value]="query().flow ?? ''"
+            (change)="setFilter('flow', $any($event.target).value)"
+          >
+            <option value="">All</option>
+            <option value="inbound">Incoming (from internet)</option>
+            <option value="outbound">Outgoing (to internet)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f-direction">Direction</label>
+          <select
+            id="f-direction"
+            class="select"
+            [value]="query().direction ?? ''"
+            (change)="setFilter('direction', $any($event.target).value)"
+          >
+            <option value="">All</option>
+            @for (direction of f.directions; track direction) {
+              <option [value]="direction">{{ directionLabels[direction] }}</option>
+            }
+          </select>
+        </div>
+      }
+      @if (f.protocols.length > 1) {
+        <div class="field">
+          <label for="f-protocol">Protocol</label>
+          <select
+            id="f-protocol"
+            class="select"
+            [value]="query().protocol ?? ''"
+            (change)="setFilter('protocol', $any($event.target).value)"
+          >
+            <option value="">All</option>
+            @for (protocol of f.protocols; track protocol) {
+              <option [value]="protocol">{{ protocol }}</option>
+            }
+          </select>
+        </div>
+      }
+      @if (f.ipVersions.length > 1) {
+        <div class="field">
+          <label for="f-ipv">IP version</label>
+          <select
+            id="f-ipv"
+            class="select"
+            [value]="query().ipVersion ?? ''"
+            (change)="setIpVersion($any($event.target).value)"
+          >
+            <option value="">All</option>
+            @for (version of f.ipVersions; track version) {
+              <option [value]="version">IPv{{ version }}</option>
+            }
+          </select>
+        </div>
+      }
+      <div class="field">
+        <label for="f-ip">Address</label>
+        <input
+          id="f-ip"
+          class="input mono"
+          placeholder="Source or destination IP"
+          [attr.aria-invalid]="ipError()"
+          (change)="setAddress($any($event.target).value)"
+        />
+      </div>
+      <div class="field port">
+        <label for="f-port">Port</label>
+        <input
+          id="f-port"
+          class="input mono"
+          inputmode="numeric"
+          placeholder="Any"
+          (change)="setPort($any($event.target).value)"
+        />
+      </div>
+      @if (hasFilters()) {
+        <button type="button" class="btn btn--ghost clear" (click)="clearFilters()">
+          Clear filters
+        </button>
+      }
+    </div>
+  </section>
+}
+
+<div class="split" [class.has-detail]="selectedId()">
+  <section class="panel">
+    @if (events.isLoading()) {
+      <app-loading />
+    }
+    @if (events.error(); as error) {
+      <app-load-error [error]="error" (retry)="events.reload()" />
+    }
+    @if (events.hasValue()) {
+      @let page = events.value();
+      @if (page.meta.total === 0 && !hasFilters()) {
+        <app-empty-state
+          title="No firewall events"
+          description="Nothing has been imported yet. Download the log from the router and upload it on the Log imports tab."
+        >
+          <a class="btn btn--primary" routerLink="../imports">Import log</a>
+        </app-empty-state>
+      } @else if (page.meta.total === 0) {
+        <app-empty-state title="No events match these filters" />
+      } @else {
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">
+                  <button type="button" class="sort-button" (click)="sortBy('occurred_at')">
+                    Time{{ sortIndicator('occurred_at') }}
+                  </button>
+                </th>
+                <th scope="col">Action</th>
+                <th scope="col">Direction</th>
+                <th scope="col">
+                  <button type="button" class="sort-button" (click)="sortBy('source_ip')">
+                    Source{{ sortIndicator('source_ip') }}
+                  </button>
+                </th>
+                <th scope="col">
+                  <button type="button" class="sort-button" (click)="sortBy('destination_ip')">
+                    Destination{{ sortIndicator('destination_ip') }}
+                  </button>
+                </th>
+                <th scope="col">
+                  <button type="button" class="sort-button" (click)="sortBy('destination_port')">
+                    Proto / port{{ sortIndicator('destination_port') }}
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (event of page.data; track event.id) {
+                <tr
+                  class="is-clickable"
+                  [class.is-selected]="event.id === selectedId()"
+                  tabindex="0"
+                  (click)="selectedId.set(event.id)"
+                  (keydown.enter)="selectedId.set(event.id)"
+                >
+                  <td class="num">{{ event.occurredAt | dateTime }}</td>
+                  <td><app-state-badge [state]="event.action" /></td>
+                  <td class="text-secondary">
+                    {{ directionLabel(event.direction, event.directionRaw) }}
+                  </td>
+                  <td class="mono">{{ event.sourceIp | endpoint: event.sourcePort }}</td>
+                  <td class="mono">{{ event.destinationIp | endpoint: event.destinationPort }}</td>
+                  <td class="mono">
+                    {{ event.protocol
+                    }}{{ event.destinationPort === null ? '' : '/' + event.destinationPort }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <app-pagination [meta]="page.meta" (pageChange)="setPage($event)" />
+      }
+    }
+  </section>
+
+  @if (selectedId()) {
+    <aside class="panel detail" aria-label="Event details">
+      <header class="panel__header">
+        <h2>Event</h2>
+        <button type="button" class="btn btn--ghost btn--sm" (click)="selectedId.set(undefined)">
+          Close
+        </button>
+      </header>
+      <div class="panel__body stack">
+        @if (selected.hasValue()) {
+          @let e = selected.value();
+          <dl class="kv">
+            <dt>Time</dt>
+            <dd>{{ e.occurredAt | dateTime }}</dd>
+            <dt>Action</dt>
+            <dd>
+              <app-state-badge [state]="e.action" />
+              <span class="text-tertiary">({{ e.actionRaw }})</span>
+            </dd>
+            <dt>Direction</dt>
+            <dd>{{ directionLabel(e.direction, e.directionRaw) }}</dd>
+            <dt>Interfaces</dt>
+            <dd class="mono">{{ e.inInterface ?? '—' }} → {{ e.outInterface ?? '—' }}</dd>
+            <dt>Source</dt>
+            <dd class="mono">{{ e.sourceIp | endpoint: e.sourcePort }}</dd>
+            <dt>Destination</dt>
+            <dd class="mono">{{ e.destinationIp | endpoint: e.destinationPort }}</dd>
+            <dt>Protocol</dt>
+            <dd>{{ e.protocol }} · IPv{{ e.ipVersion }}</dd>
+            <dt>Severity</dt>
+            <dd>{{ e.severity ?? '—' }}</dd>
+            <dt>Import</dt>
+            <dd class="num">#{{ e.importId }}</dd>
+          </dl>
+          <div class="field">
+            <span class="field__label">Original log line</span>
+            <pre class="raw">{{ e.rawLine }}</pre>
+          </div>
+          <p class="text-tertiary note">
+            One log entry is an observation. A denied packet was blocked by the router; it does not
+            by itself mean the source is malicious.
+          </p>
+        } @else if (selected.error(); as error) {
+          <app-load-error [error]="error" (retry)="selected.reload()" />
+        } @else {
+          <app-loading />
+        }
+      </div>
+    </aside>
+  }
+</div>

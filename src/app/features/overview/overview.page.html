@@ -1,0 +1,218 @@
+<div class="page">
+  <app-page-header
+    title="Overview"
+    description="Current state of the network, from recorded checks and imported data only."
+  >
+    @if (overview.hasValue()) {
+      <span class="updated text-tertiary"
+        >Updated {{ overview.value().generatedAt | relative }}</span
+      >
+    }
+  </app-page-header>
+
+  @if (overview.isLoading() && !overview.hasValue()) {
+    <app-loading />
+  }
+  @if (overview.error(); as error) {
+    <app-load-error [error]="error" (retry)="overview.reload()" />
+  }
+
+  @if (overview.hasValue()) {
+    @let o = overview.value();
+
+    <section class="health panel" aria-label="Service health">
+      <a class="health__item" routerLink="/monitoring">
+        <span class="health__label">Router</span>
+        <app-state-badge [state]="o.router.state" />
+        <span class="health__meta mono">
+          @if (o.router.lastCheck?.latencyMs !== null && o.router.lastCheck) {
+            {{ o.router.lastCheck.latencyMs }} ms
+          } @else if (o.router.host) {
+            {{ o.router.host }}
+          } @else {
+            Set ROUTER_HOST
+          }
+        </span>
+      </a>
+      <div class="health__item">
+        <span class="health__label">API server</span>
+        <app-state-badge [state]="o.api.state" />
+        <span class="health__meta">Up {{ formatDuration(o.api.uptimeSeconds) }}</span>
+      </div>
+      <div class="health__item">
+        <span class="health__label">Database</span>
+        <app-state-badge [state]="o.database.state" />
+      </div>
+      <a class="health__item" routerLink="/monitoring">
+        <span class="health__label">Monitoring</span>
+        <app-state-badge [state]="o.monitoring.state" />
+        <span class="health__meta">
+          @if (o.monitoring.targets === 0) {
+            No targets
+          } @else {
+            {{ o.monitoring.targets }} targets, {{ o.monitoring.failing.length }} failing
+          }
+        </span>
+      </a>
+      <a class="health__item" routerLink="/dns">
+        <span class="health__label">DNS filtering</span>
+        <app-state-badge [state]="o.dns.state" />
+      </a>
+    </section>
+
+    @if (o.monitoring.failing.length > 0) {
+      <p class="notice notice--error" role="status">
+        Failing checks:
+        @for (target of o.monitoring.failing; track target.id; let last = $last) {
+          <strong>{{ target.name }}</strong>{{ last ? '' : ', ' }}
+        }
+      </p>
+    }
+
+    <div class="grid">
+      <section class="panel">
+        <header class="panel__header">
+          <h2>Devices</h2>
+          <app-state-badge [state]="o.devices.state" />
+        </header>
+        <div class="panel__body">
+          @if (!o.devices.latestScan) {
+            <app-empty-state
+              title="No discovery scan yet"
+              description="Run a scan to see which devices are on the network."
+            >
+              <a class="btn btn--primary" routerLink="/devices">Go to devices</a>
+            </app-empty-state>
+          } @else {
+            <dl class="figures">
+              <div>
+                <dt>Online</dt>
+                <dd class="num">{{ o.devices.online | num }}</dd>
+              </div>
+              <div>
+                <dt>Known</dt>
+                <dd class="num">{{ o.devices.total | num }}</dd>
+              </div>
+              <div>
+                <dt>New (24 h)</dt>
+                <dd class="num" [class.attention]="o.devices.newLast24h > 0">
+                  {{ o.devices.newLast24h | num }}
+                </dd>
+              </div>
+            </dl>
+            <p class="footnote">
+              Last scan {{ o.devices.latestScan.startedAt | relative }}
+              @if (o.devices.latestScan.status === 'failed') {
+                <span class="failed">failed: {{ o.devices.latestScan.error }}</span>
+              }
+              · <a routerLink="/devices" [queryParams]="{ status: 'new' }">View new devices</a>
+            </p>
+          }
+        </div>
+      </section>
+
+      <section class="panel">
+        <header class="panel__header">
+          <h2>Firewall log</h2>
+          <app-state-badge
+            [state]="o.firewall.state"
+            [label]="o.firewall.hasData ? undefined : 'No data'"
+          />
+        </header>
+        <div class="panel__body">
+          @if (!o.firewall.hasData) {
+            <app-empty-state
+              title="No firewall log imported"
+              description="Download the log from the router's firewall log page and upload it here."
+            >
+              <a class="btn btn--primary" routerLink="/firewall/imports">Import log</a>
+            </app-empty-state>
+          } @else {
+            <dl class="figures">
+              <div>
+                <dt>Denied</dt>
+                <dd class="num">{{ o.firewall.denied | num }}</dd>
+              </div>
+              <div>
+                <dt>Accepted</dt>
+                <dd class="num">{{ o.firewall.accepted | num }}</dd>
+              </div>
+              <div>
+                <dt>Repeated sources</dt>
+                <dd class="num" [class.attention]="o.firewall.repeatedDeniedSources > 0">
+                  {{ o.firewall.repeatedDeniedSources | num }}
+                </dd>
+              </div>
+            </dl>
+            <p class="footnote">
+              {{ o.firewall.range.from | dateTime }} – {{ o.firewall.range.to | dateTime }} (last 7
+              days of imported data) · <a routerLink="/firewall/insights">Insights</a>
+            </p>
+            @if (o.firewall.acceptedInbound > 0) {
+              <p class="notice notice--warning">
+                Inbound traffic from the internet was accepted.
+                <a routerLink="/firewall/insights">Review</a>
+              </p>
+            }
+          }
+        </div>
+      </section>
+
+      <section class="panel">
+        <header class="panel__header">
+          <h2>Router</h2>
+          <app-state-badge [state]="o.router.state" />
+        </header>
+        <div class="panel__body">
+          @if (o.router.state === 'not_configured') {
+            <app-empty-state
+              title="Router address not configured"
+              description="Set ROUTER_HOST in the API environment to monitor the router."
+            />
+          } @else {
+            <dl class="kv">
+              <dt>Address</dt>
+              <dd class="mono">{{ o.router.host }}</dd>
+              <dt>Last check</dt>
+              <dd>
+                @if (o.router.lastCheck) {
+                  {{ o.router.lastCheck.checkedAt | relative }} ·
+                  {{ o.router.lastCheck.success ? 'reachable' : 'no reply' }}
+                } @else {
+                  Not checked yet
+                }
+              </dd>
+              <dt>Uptime (24 h)</dt>
+              <dd class="num">
+                {{ o.router.uptimePercent24h === null ? '—' : o.router.uptimePercent24h + '%' }}
+              </dd>
+            </dl>
+          }
+        </div>
+      </section>
+
+      <section class="panel">
+        <header class="panel__header">
+          <h2>Firewall rules</h2>
+        </header>
+        <div class="panel__body">
+          @if (o.policies.pendingManual === 0 && o.policies.failed === 0) {
+            <p class="text-secondary">No rules waiting to be applied.</p>
+          } @else {
+            <dl class="figures">
+              <div>
+                <dt>Waiting for manual apply</dt>
+                <dd class="num attention">{{ o.policies.pendingManual }}</dd>
+              </div>
+              <div>
+                <dt>Failed</dt>
+                <dd class="num" [class.error]="o.policies.failed > 0">{{ o.policies.failed }}</dd>
+              </div>
+            </dl>
+          }
+          <p class="footnote"><a routerLink="/firewall/policies">Manage rules</a></p>
+        </div>
+      </section>
+    </div>
+  }
+</div>

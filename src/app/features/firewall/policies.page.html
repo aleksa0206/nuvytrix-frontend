@@ -1,0 +1,186 @@
+<p class="notice notice--info">
+  The router has no supported management API, so Nuvytrix cannot read or change its firewall. Rules
+  here are your intended state. Apply them by hand with the generated instructions, then record the
+  result. “Marked applied” means you said so; it is never verified by the router.
+</p>
+
+@if (actionError()) {
+  <p class="notice notice--error" role="alert">{{ actionError() }}</p>
+}
+
+<div class="toolbar">
+  <button type="button" class="btn btn--primary" (click)="startCreate()">New rule</button>
+</div>
+
+@if (editing()) {
+  <section class="panel">
+    <header class="panel__header">
+      <h2>{{ editing() === 'new' ? 'New rule' : 'Edit rule' }}</h2>
+    </header>
+    <form class="panel__body stack" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="form-grid">
+        <div class="field">
+          <label for="p-name">Name</label>
+          <input
+            id="p-name"
+            class="input"
+            formControlName="name"
+            [attr.aria-invalid]="form.controls.name.touched && form.controls.name.invalid"
+          />
+        </div>
+        <div class="field">
+          <label for="p-action">Action</label>
+          <select id="p-action" class="select" formControlName="action">
+            <option value="deny">Deny</option>
+            <option value="accept">Accept</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="p-direction">Direction</label>
+          <select id="p-direction" class="select" formControlName="direction">
+            @for (direction of directions; track direction) {
+              <option [value]="direction">{{ directionLabels[direction] }}</option>
+            }
+          </select>
+        </div>
+        <div class="field">
+          <label for="p-protocol">Protocol</label>
+          <select id="p-protocol" class="select" formControlName="protocol">
+            <option value="any">Any</option>
+            <option value="tcp">TCP</option>
+            <option value="udp">UDP</option>
+            <option value="icmp">ICMP</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="p-source">Source</label>
+          <input
+            id="p-source"
+            class="input mono"
+            formControlName="source"
+            [attr.aria-invalid]="form.controls.source.invalid"
+          />
+          <span class="field__hint">any, an IP, or an IPv4 CIDR</span>
+        </div>
+        <div class="field">
+          <label for="p-destination">Destination</label>
+          <input
+            id="p-destination"
+            class="input mono"
+            formControlName="destination"
+            [attr.aria-invalid]="form.controls.destination.invalid"
+          />
+        </div>
+        @if (portsEnabled()) {
+          <div class="field">
+            <label for="p-ports">Destination port(s)</label>
+            <input
+              id="p-ports"
+              class="input mono"
+              formControlName="destinationPorts"
+              placeholder="443 or 1000-2000"
+              [attr.aria-invalid]="form.controls.destinationPorts.invalid"
+            />
+          </div>
+        }
+      </div>
+      <div class="field">
+        <label for="p-description">Why this rule exists</label>
+        <textarea
+          id="p-description"
+          class="textarea"
+          rows="2"
+          formControlName="description"
+        ></textarea>
+      </div>
+      @if (formError()) {
+        <p class="notice notice--error" role="alert">{{ formError() }}</p>
+      }
+      <div class="toolbar">
+        <button type="submit" class="btn btn--primary">Save</button>
+        <button type="button" class="btn" (click)="editing.set(null)">Cancel</button>
+      </div>
+    </form>
+  </section>
+}
+
+<section class="panel">
+  @if (policies.isLoading()) {
+    <app-loading />
+  }
+  @if (policies.error(); as error) {
+    <app-load-error [error]="error" (retry)="policies.reload()" />
+  }
+  @if (policies.hasValue()) {
+    @if (policies.value().length === 0) {
+      <app-empty-state
+        title="No rules tracked"
+        description="Create a rule to plan a change, get step-by-step instructions for the router, and keep a record of what you applied."
+      />
+    } @else {
+      <ul class="rules">
+        @for (policy of policies.value(); track policy.id) {
+          <li class="rule">
+            <div class="rule__main">
+              <div class="rule__title">
+                <strong>{{ policy.name }}</strong>
+                <app-state-badge [state]="policy.status" />
+              </div>
+              <p class="rule__spec mono">
+                {{ policy.action.toUpperCase() }} · {{ directionLabels[policy.direction] }} ·
+                {{ policy.protocol.toUpperCase() }} · {{ policy.source }} → {{ policy.destination
+                }}{{ policy.destinationPorts ? ':' + policy.destinationPorts : '' }}
+              </p>
+              @if (policy.description) {
+                <p class="text-secondary">{{ policy.description }}</p>
+              }
+              @if (policy.statusNote) {
+                <p class="text-tertiary">{{ policy.statusNote }}</p>
+              }
+              @for (warning of policy.warnings; track warning) {
+                <p class="notice notice--warning">{{ warning }}</p>
+              }
+              <p class="text-tertiary meta">
+                Status changed {{ policy.statusChangedAt | relative }}
+              </p>
+            </div>
+            <div class="rule__actions">
+              @for (status of policy.allowedTransitions; track status) {
+                <button type="button" class="btn btn--sm" (click)="changeStatus(policy, status)">
+                  {{ transitionLabels[status] }}
+                </button>
+              }
+              <button type="button" class="btn btn--sm" (click)="showInstructions(policy)">
+                Instructions
+              </button>
+              <button type="button" class="btn btn--sm btn--ghost" (click)="startEdit(policy)">
+                Edit
+              </button>
+              <button type="button" class="btn btn--sm btn--ghost" (click)="remove(policy)">
+                Delete
+              </button>
+            </div>
+
+            @if (instructions()?.policyId === policy.id) {
+              <div class="instructions">
+                <ol>
+                  @for (step of instructions()!.steps; track $index) {
+                    <li [class.indent]="step.startsWith('  ')">{{ step.trim() }}</li>
+                  }
+                </ol>
+                <p class="text-tertiary">{{ instructions()!.note }}</p>
+                <button
+                  type="button"
+                  class="btn btn--ghost btn--sm"
+                  (click)="instructions.set(null)"
+                >
+                  Hide
+                </button>
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    }
+  }
+</section>

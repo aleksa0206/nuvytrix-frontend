@@ -1,0 +1,212 @@
+<section class="panel">
+  <header class="panel__header"><h2>Import a firewall log</h2></header>
+  <div class="panel__body stack">
+    <ol class="steps">
+      <li>Open the router at http://192.168.100.1 and go to the firewall log page.</li>
+      <li>
+        Make sure the log is enabled for the directions you care about. Logging every direction can
+        slow forwarding.
+      </li>
+      <li>Use “Download Log File” and upload the file here (.log or .txt, plain text).</li>
+    </ol>
+    <div class="upload">
+      <input
+        #fileInput
+        type="file"
+        accept=".log,.txt,text/plain"
+        aria-label="Firewall log file"
+        (change)="pick(fileInput)"
+      />
+      <button
+        type="button"
+        class="btn btn--primary"
+        [disabled]="!file() || uploading()"
+        (click)="upload(fileInput)"
+      >
+        {{ uploading() ? 'Importing…' : 'Import' }}
+      </button>
+    </div>
+    @if (uploadError()) {
+      <p class="notice notice--error" role="alert">{{ uploadError() }}</p>
+    }
+
+    @if (result(); as r) {
+      <div class="stack" role="status">
+        <p
+          class="notice"
+          [class.notice--warning]="r.rejectedLines > 0"
+          [class.notice--info]="r.rejectedLines === 0"
+        >
+          Imported <strong>{{ r.fileName }}</strong>: {{ r.insertedEvents | num }} new events
+          stored.
+          @if (r.duplicateEvents > 0) {
+            {{ r.duplicateEvents | num }} were already imported and skipped.
+          }
+          @if (r.rejectedLines > 0) {
+            {{ r.rejectedLines | num }} lines could not be parsed; they are listed below and kept
+            with the import.
+          }
+        </p>
+        <dl class="counts">
+          <div>
+            <dt>Lines</dt>
+            <dd class="num">{{ r.totalLines | num }}</dd>
+          </div>
+          <div>
+            <dt>Parsed events</dt>
+            <dd class="num">{{ r.parsedEvents | num }}</dd>
+          </div>
+          <div>
+            <dt>New</dt>
+            <dd class="num">{{ r.insertedEvents | num }}</dd>
+          </div>
+          <div>
+            <dt>Duplicates</dt>
+            <dd class="num">{{ r.duplicateEvents | num }}</dd>
+          </div>
+          <div>
+            <dt>Rejected</dt>
+            <dd class="num" [class.rejected]="r.rejectedLines > 0">{{ r.rejectedLines | num }}</dd>
+          </div>
+          <div>
+            <dt>Blank</dt>
+            <dd class="num">{{ r.blankLines | num }}</dd>
+          </div>
+        </dl>
+        @if (r.rejectedSample.length > 0) {
+          <div class="table-wrap">
+            <table class="table">
+              <caption class="visually-hidden">
+                First rejected lines
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Line</th>
+                  <th scope="col">Reason</th>
+                  <th scope="col">Content</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of r.rejectedSample; track line.lineNumber) {
+                  <tr>
+                    <td class="num">{{ line.lineNumber }}</td>
+                    <td>{{ line.reason }}</td>
+                    <td class="mono raw" [title]="line.rawLine">{{ line.rawLine }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+        <a routerLink="../events">View events</a>
+      </div>
+    }
+  </div>
+</section>
+
+<section class="panel">
+  <header class="panel__header"><h2>Import history</h2></header>
+  @if (imports.isLoading()) {
+    <app-loading />
+  }
+  @if (imports.error(); as error) {
+    <app-load-error [error]="error" (retry)="imports.reload()" />
+  }
+  @if (imports.hasValue()) {
+    @if (imports.value().data.length === 0) {
+      <app-empty-state title="No logs imported yet" />
+    } @else {
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Imported</th>
+              <th scope="col">File</th>
+              <th scope="col">Covers</th>
+              <th scope="col" class="align-right">New</th>
+              <th scope="col" class="align-right">Duplicates</th>
+              <th scope="col" class="align-right">Rejected</th>
+              <th scope="col">By</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of imports.value().data; track item.id) {
+              <tr
+                class="is-clickable"
+                [class.is-selected]="item.id === selectedImportId()"
+                tabindex="0"
+                (click)="selectedImportId.set(item.id)"
+                (keydown.enter)="selectedImportId.set(item.id)"
+              >
+                <td>{{ item.createdAt | dateTime }}</td>
+                <td>
+                  {{ item.fileName }}
+                  <span class="text-tertiary">({{ item.fileSizeBytes | bytes }})</span>
+                </td>
+                <td class="text-secondary">
+                  @if (item.firstEventAt) {
+                    {{ item.firstEventAt | dateTime }} – {{ item.lastEventAt | dateTime }}
+                  } @else {
+                    No events
+                  }
+                </td>
+                <td class="align-right num">{{ item.insertedEvents | num }}</td>
+                <td class="align-right num">{{ item.duplicateEvents | num }}</td>
+                <td class="align-right num" [class.rejected]="item.rejectedLines > 0">
+                  {{ item.rejectedLines | num }}
+                </td>
+                <td class="text-secondary">{{ item.importedBy ?? '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</section>
+
+@if (selectedImportId() && selectedImport.hasValue()) {
+  @let detail = selectedImport.value();
+  <section class="panel">
+    <header class="panel__header">
+      <h2>Rejected lines in {{ detail.fileName }}</h2>
+      <button
+        type="button"
+        class="btn btn--ghost btn--sm"
+        (click)="selectedImportId.set(undefined)"
+      >
+        Close
+      </button>
+    </header>
+    @if (detail.rejected.length === 0) {
+      <app-empty-state title="Every line was parsed" />
+    } @else {
+      @if (detail.rejectedLinesTruncated) {
+        <p class="panel__body notice notice--warning">
+          Only the first {{ detail.rejected.length | num }} of
+          {{ detail.rejectedLines | num }} rejected lines are stored.
+        </p>
+      }
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Line</th>
+              <th scope="col">Reason</th>
+              <th scope="col">Content</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (line of detail.rejected; track line.lineNumber) {
+              <tr>
+                <td class="num">{{ line.lineNumber }}</td>
+                <td>{{ line.reason }}</td>
+                <td class="mono raw" [title]="line.rawLine">{{ line.rawLine }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+}

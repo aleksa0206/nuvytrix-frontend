@@ -1,0 +1,220 @@
+<div class="page">
+  <app-page-header
+    title="Monitoring"
+    description="Ping and DNS checks run from the server on a schedule. Uptime and charts use only recorded checks. Per-device traffic needs hardware this network does not have."
+  >
+    <button type="button" class="btn btn--primary" (click)="showForm.set(!showForm())">
+      Add target
+    </button>
+  </app-page-header>
+
+  @if (actionError()) {
+    <p class="notice notice--error" role="alert">{{ actionError() }}</p>
+  }
+
+  @if (showForm()) {
+    <section class="panel">
+      <header class="panel__header"><h2>New target</h2></header>
+      <form class="panel__body stack" [formGroup]="form" (ngSubmit)="create()" novalidate>
+        <div class="form-grid">
+          <div class="field">
+            <label for="t-name">Name</label>
+            <input id="t-name" class="input" formControlName="name" placeholder="Ubuntu server" />
+          </div>
+          <div class="field">
+            <label for="t-kind">Check</label>
+            <select id="t-kind" class="select" formControlName="kind">
+              <option value="icmp">Ping (availability, latency, loss)</option>
+              <option value="dns">DNS resolution</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="t-host">{{
+              form.controls.kind.value === 'dns' ? 'Resolver IP' : 'Host or IP'
+            }}</label>
+            <input
+              id="t-host"
+              class="input mono"
+              formControlName="host"
+              [attr.aria-invalid]="form.controls.host.touched && form.controls.host.invalid"
+            />
+          </div>
+          @if (form.controls.kind.value === 'dns') {
+            <div class="field">
+              <label for="t-query">Name to resolve</label>
+              <input id="t-query" class="input mono" formControlName="dnsQueryName" />
+            </div>
+          }
+        </div>
+        @if (formError()) {
+          <p class="notice notice--error" role="alert">{{ formError() }}</p>
+        }
+        <div class="toolbar">
+          <button type="submit" class="btn btn--primary">Add</button>
+          <button type="button" class="btn" (click)="showForm.set(false)">Cancel</button>
+        </div>
+      </form>
+    </section>
+  }
+
+  <div class="layout">
+    <section class="panel">
+      @if (targets.isLoading() && !targets.hasValue()) {
+        <app-loading />
+      }
+      @if (targets.error(); as error) {
+        <app-load-error [error]="error" (retry)="targets.reload()" />
+      }
+      @if (targets.hasValue()) {
+        @if (targets.value().length === 0) {
+          <app-empty-state
+            title="Nothing is monitored"
+            description="Set ROUTER_HOST in the API environment to monitor the router, and add targets such as the server or other key devices."
+          />
+        } @else {
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th scope="col">Status</th>
+                  <th scope="col">Name</th>
+                  <th scope="col">Check</th>
+                  <th scope="col" class="align-right">Latency</th>
+                  <th scope="col" class="align-right">Loss</th>
+                  <th scope="col" class="align-right">Uptime 24 h</th>
+                  <th scope="col">Last check</th>
+                  <th scope="col">Last error</th>
+                  <th scope="col"><span class="visually-hidden">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (target of targets.value(); track target.id) {
+                  <tr
+                    class="is-clickable"
+                    [class.is-selected]="target.id === selectedId()"
+                    tabindex="0"
+                    (click)="select(target)"
+                    (keydown.enter)="select(target)"
+                  >
+                    <td><app-state-badge [state]="target.status" /></td>
+                    <td>
+                      {{ target.name }}
+                      @if (target.managed) {
+                        <span class="text-tertiary">· from config</span>
+                      }
+                    </td>
+                    <td class="mono">
+                      {{
+                        target.kind === 'icmp'
+                          ? 'ping ' + target.host
+                          : target.dnsQueryName + ' @' + target.host
+                      }}
+                    </td>
+                    <td class="align-right num">
+                      {{ metric(target.lastCheck?.latencyMs, ' ms') }}
+                    </td>
+                    <td class="align-right num">
+                      {{ metric(target.lastCheck?.packetLossPercent, '%') }}
+                    </td>
+                    <td
+                      class="align-right num"
+                      [title]="target.window ? target.window.checks + ' checks' : 'No checks yet'"
+                    >
+                      {{ target.window ? target.window.uptimePercent + '%' : '—' }}
+                    </td>
+                    <td [title]="target.lastCheck?.checkedAt | dateTime">
+                      {{
+                        target.lastCheck
+                          ? (target.lastCheck.checkedAt | relative)
+                          : 'Not checked yet'
+                      }}
+                    </td>
+                    <td class="error-cell" [title]="target.lastCheck?.error ?? ''">
+                      {{ target.lastCheck?.success === false ? target.lastCheck.error : '' }}
+                    </td>
+                    <td>
+                      <div class="actions">
+                        <button
+                          type="button"
+                          class="btn btn--sm"
+                          (click)="$event.stopPropagation(); checkNow(target)"
+                        >
+                          Check now
+                        </button>
+                        @if (!target.managed) {
+                          <button
+                            type="button"
+                            class="btn btn--sm btn--ghost"
+                            (click)="$event.stopPropagation(); toggleEnabled(target)"
+                          >
+                            {{ target.enabled ? 'Pause' : 'Resume' }}
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn--sm btn--ghost"
+                            (click)="$event.stopPropagation(); remove(target)"
+                          >
+                            Delete
+                          </button>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      }
+    </section>
+
+    @if (selected(); as target) {
+      <section class="panel">
+        <header class="panel__header">
+          <h2>{{ target.name }}: latency</h2>
+          <div class="segmented ranges" role="group" aria-label="Time range">
+            @for (range of ranges; track range.hours) {
+              <button
+                type="button"
+                [attr.aria-pressed]="hours() === range.hours"
+                (click)="hours.set(range.hours)"
+              >
+                {{ range.label }}
+              </button>
+            }
+          </div>
+        </header>
+        <div class="panel__body stack">
+          @if (series.isLoading()) {
+            <app-loading />
+          }
+          @if (series.hasValue()) {
+            @if (latencyPoints().length === 0 || !series.value().points.length) {
+              <app-empty-state
+                title="No measurements in this period"
+                description="The chart appears once checks have been recorded. Nothing is filled in or estimated."
+              />
+            } @else {
+              <app-line-chart
+                [points]="latencyPoints()"
+                [bucketMinutes]="series.value().bucketMinutes"
+                unit=" ms"
+                [label]="'Average latency of ' + target.name"
+              />
+              <div class="chart-meta">
+                <span>Averaged per {{ series.value().bucketMinutes }} min</span>
+                <span>Gaps mean no successful check was recorded</span>
+                @if (target.window) {
+                  <span
+                    >24 h: {{ target.window.checks }} checks, {{ target.window.uptimePercent }}%
+                    up</span
+                  >
+                }
+              </div>
+            }
+          }
+        </div>
+      </section>
+    }
+  </div>
+</div>

@@ -1,0 +1,46 @@
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <button
+    type="button"
+    class="btn btn--ghost menu-button"
+    [attr.aria-expanded]="navOpen()"
+    aria-controls="sidebar"
+    (click)="navOpen.set(!navOpen())"
+  >
+    Menu
+  </button>
+  <a routerLink="/overview" class="brand">Nuvytrix</a>
+</header>
+
+<nav id="sidebar" class="sidebar" [class.is-open]="navOpen()" aria-label="Main">
+  <a routerLink="/overview" class="brand brand--sidebar">Nuvytrix</a>
+  <ul class="nav">
+    @for (item of nav; track item.path) {
+      <li>
+        <a [routerLink]="item.path" routerLinkActive="is-active" ariaCurrentWhenActive="page">
+          {{ item.label }}
+        </a>
+      </li>
+    }
+  </ul>
+  <div class="sidebar__footer">
+    <span class="user">{{ auth.admin()?.username }}</span>
+    <div class="footer-actions">
+      <button type="button" class="btn btn--ghost btn--sm" (click)="theme.toggle()">
+        {{ theme.mode() === 'dark' ? 'Light theme' : 'Dark theme' }}
+      </button>
+      <button type="button" class="btn btn--ghost btn--sm" (click)="signOut()">Sign out</button>
+    </div>
+  </div>
+</nav>
+
+@if (navOpen()) {
+  <div class="scrim" (click)="navOpen.set(false)" aria-hidden="true"></div>
+}
+
+<main id="main" tabindex="-1">
+  <router-outlet />
+</main>
+
+<app-confirm-dialog />

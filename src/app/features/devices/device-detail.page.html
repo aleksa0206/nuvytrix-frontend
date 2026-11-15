@@ -1,0 +1,104 @@
+<div class="page">
+  <a routerLink="/devices" class="back">← Devices</a>
+
+  @if (device.isLoading() && !device.hasValue()) {
+    <app-loading />
+  }
+  @if (device.error(); as error) {
+    <app-load-error [error]="error" (retry)="device.reload()" />
+  }
+
+  @if (device.hasValue()) {
+    @let d = device.value();
+    <app-page-header [title]="d.customName ?? d.hostname ?? d.ipAddress">
+      <app-state-badge [state]="d.status" />
+    </app-page-header>
+
+    <div class="layout">
+      <section class="panel">
+        <header class="panel__header"><h2>Identification</h2></header>
+        <div class="panel__body">
+          <dl class="kv">
+            <dt>IP address</dt>
+            <dd class="mono">{{ d.ipAddress }}</dd>
+            <dt>MAC address</dt>
+            <dd class="mono">
+              {{
+                d.macAddress ??
+                  'Unavailable (not reported by nmap; the scanning host never sees its own MAC)'
+              }}
+            </dd>
+            <dt>Hostname</dt>
+            <dd>{{ d.hostname ?? 'Not resolved' }}</dd>
+            <dt>Vendor</dt>
+            <dd>{{ d.vendor ?? 'Unknown' }}</dd>
+            <dt>First seen</dt>
+            <dd>{{ d.firstSeenAt | dateTime }}</dd>
+            <dt>Last seen</dt>
+            <dd>{{ d.lastSeenAt | dateTime }} ({{ d.lastSeenAt | relative }})</dd>
+          </dl>
+        </div>
+      </section>
+
+      <section class="panel">
+        <header class="panel__header"><h2>Your notes</h2></header>
+        <form class="panel__body stack" [formGroup]="form" (ngSubmit)="save()">
+          <div class="field">
+            <label for="customName">Custom name</label>
+            <input id="customName" class="input" formControlName="customName" maxlength="100" />
+          </div>
+          <div class="field">
+            <label for="deviceType">Type</label>
+            <select id="deviceType" class="select" formControlName="deviceType">
+              <option value="">Not set</option>
+              @for (type of deviceTypes; track type) {
+                <option [value]="type">{{ type.replace('_', ' ') }}</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label for="notes">Notes</label>
+            <textarea id="notes" class="textarea" rows="4" formControlName="notes"></textarea>
+          </div>
+          @if (saveError()) {
+            <p class="notice notice--error" role="alert">{{ saveError() }}</p>
+          }
+          <div class="form-actions">
+            <button type="submit" class="btn btn--primary" [disabled]="saving() || form.pristine">
+              Save
+            </button>
+            @if (saved() && form.pristine) {
+              <span class="saved" role="status">Saved</span>
+            }
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <section class="panel">
+      <header class="panel__header"><h2>Seen in scans</h2></header>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Time</th>
+              <th scope="col">IP address</th>
+              <th scope="col">Hostname</th>
+              <th scope="col">Scan</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (observation of d.observations; track observation.scanId) {
+              <tr>
+                <td>{{ observation.observedAt | dateTime }}</td>
+                <td class="mono">{{ observation.ipAddress }}</td>
+                <td>{{ observation.hostname ?? '—' }}</td>
+                <td class="num text-secondary">#{{ observation.scanId }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+</div>

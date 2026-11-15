@@ -1,0 +1,153 @@
+<div class="page">
+  <app-page-header
+    title="Devices"
+    description="Hosts found by nmap ping scans of the local network. Fields nmap could not determine are shown as unavailable."
+  >
+    <button type="button" class="btn btn--primary" [disabled]="activeScan()" (click)="startScan()">
+      {{ activeScan() ? 'Scanning ' + activeScan()!.target + '…' : 'Scan network' }}
+    </button>
+  </app-page-header>
+
+  @if (scanError()) {
+    <p class="notice notice--error" role="alert">{{ scanError() }}</p>
+  }
+
+  <section class="panel">
+    <div class="panel__header">
+      <div class="toolbar">
+        <div class="segmented" role="group" aria-label="Status">
+          @for (option of statusFilters; track option.label) {
+            <button
+              type="button"
+              [attr.aria-pressed]="query().status === option.value"
+              (click)="setStatus(option.value)"
+            >
+              {{ option.label }}
+            </button>
+          }
+        </div>
+      </div>
+      <input
+        class="input search"
+        type="search"
+        placeholder="Search name, IP, MAC, vendor"
+        aria-label="Search devices"
+        (input)="onSearch($any($event.target).value)"
+      />
+    </div>
+
+    @if (list.isLoading()) {
+      <app-loading />
+    }
+    @if (list.error(); as error) {
+      <app-load-error [error]="error" (retry)="list.reload()" />
+    }
+
+    @if (list.hasValue()) {
+      @let page = list.value();
+      @if (page.meta.total === 0 && !query().search && !query().status) {
+        <app-empty-state
+          title="No devices discovered yet"
+          description="Start a scan. It sends a ping sweep to the allowed local network and records every host that answers."
+        />
+      } @else if (page.meta.total === 0) {
+        <app-empty-state title="No devices match these filters" />
+      } @else {
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">Status</th>
+                <th scope="col">
+                  <button type="button" class="sort-button" (click)="sortBy('name')">
+                    Name{{ sortIndicator('name') }}
+                  </button>
+                </th>
+                <th scope="col">
+                  <button type="button" class="sort-button" (click)="sortBy('ip_address')">
+                    IP address{{ sortIndicator('ip_address') }}
+                  </button>
+                </th>
+                <th scope="col">MAC address</th>
+                <th scope="col">Vendor</th>
+                <th scope="col">
+                  <button type="button" class="sort-button" (click)="sortBy('last_seen_at')">
+                    Last seen{{ sortIndicator('last_seen_at') }}
+                  </button>
+                </th>
+                <th scope="col">
+                  <button type="button" class="sort-button" (click)="sortBy('first_seen_at')">
+                    First seen{{ sortIndicator('first_seen_at') }}
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (device of page.data; track device.id) {
+                <tr class="is-clickable" (click)="open(device.id)">
+                  <td><app-state-badge [state]="device.status" /></td>
+                  <td>
+                    <a [routerLink]="['/devices', device.id]" (click)="$event.stopPropagation()">
+                      {{ device.customName ?? device.hostname ?? 'Unnamed device' }}
+                    </a>
+                    @if (device.isNew) {
+                      <span class="tag">New</span>
+                    }
+                  </td>
+                  <td class="mono">{{ device.ipAddress }}</td>
+                  <td class="mono" [class.text-tertiary]="!device.macAddress">
+                    {{ device.macAddress ?? 'Unavailable' }}
+                  </td>
+                  <td [class.text-tertiary]="!device.vendor">{{ device.vendor ?? 'Unknown' }}</td>
+                  <td [title]="device.lastSeenAt | dateTime">{{ device.lastSeenAt | relative }}</td>
+                  <td [title]="device.firstSeenAt | dateTime">
+                    {{ device.firstSeenAt | relative }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <app-pagination [meta]="page.meta" (pageChange)="setPage($event)" />
+      }
+    }
+  </section>
+
+  <section class="panel">
+    <header class="panel__header"><h2>Recent scans</h2></header>
+    @if (scans.hasValue()) {
+      @if (scans.value().data.length === 0) {
+        <app-empty-state title="No scans yet" />
+      } @else {
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">Started</th>
+                <th scope="col">Target</th>
+                <th scope="col">Status</th>
+                <th scope="col" class="align-right">Hosts up</th>
+                <th scope="col" class="align-right">New</th>
+                <th scope="col">Trigger</th>
+                <th scope="col">Error</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (scan of scans.value().data; track scan.id) {
+                <tr>
+                  <td>{{ scan.startedAt | dateTime }}</td>
+                  <td class="mono">{{ scan.target }}</td>
+                  <td><app-state-badge [state]="scan.status" /></td>
+                  <td class="align-right num">{{ scan.hostsUp ?? '—' }}</td>
+                  <td class="align-right num">{{ scan.newDevices ?? '—' }}</td>
+                  <td class="text-secondary">{{ scan.scheduled ? 'Scheduled' : 'Manual' }}</td>
+                  <td class="error-cell">{{ scan.error ?? '' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+  </section>
+</div>
