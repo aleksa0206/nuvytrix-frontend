@@ -14,7 +14,18 @@ import { safeReturnUrl } from '../../core/auth/auth.guard';
       <form class="panel" [formGroup]="form" (ngSubmit)="submit()" novalidate>
         <div class="panel__body stack">
           <div>
-            <p class="brand">Nuvytrix</p>
+            <p class="brand">
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path
+                  d="M3 16V4l7 8V4M10 16l7-12M14 16h3"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="square"
+                />
+              </svg>
+              Nuvytrix
+            </p>
             <h1>Sign in</h1>
           </div>
           @if (error()) {
@@ -56,9 +67,18 @@ import { safeReturnUrl } from '../../core/auth/auth.guard';
       width: min(360px, calc(100vw - 32px));
     }
     .brand {
-      color: var(--color-text-tertiary);
-      font-size: var(--text-sm);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: var(--space-4);
+      color: var(--color-text);
       font-weight: var(--weight-semibold);
+      letter-spacing: 0.03em;
+    }
+    .brand svg {
+      width: 20px;
+      height: 20px;
+      color: var(--color-accent);
     }
     .btn {
       justify-content: center;

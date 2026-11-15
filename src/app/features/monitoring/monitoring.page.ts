@@ -1,17 +1,33 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { toApiError } from '../../core/api/api-error';
 import { pollWhileVisible } from '../../core/polling';
-import type { MonitoringTarget } from '../../core/models/system.model';
+import type { MonitoringTarget, SeriesPoint } from '../../core/models/system.model';
 import { SystemService } from '../../core/services/system.service';
+import { AvailabilityStrip } from '../../shared/ui/availability-strip';
 import { ConfirmService } from '../../shared/ui/confirm-dialog';
 import { EmptyState, LoadError, Loading } from '../../shared/ui/feedback';
 import { LineChart } from '../../shared/ui/line-chart';
 import { PageHeader } from '../../shared/ui/page-header';
 import { StateBadge } from '../../shared/ui/state-badge';
-import { DateTimePipe, RelativePipe } from '../../shared/util/format.pipes';
+import { RelativePipe } from '../../shared/util/format.pipes';
 
 const HOST = /^[a-zA-Z0-9]([a-zA-Z0-9.:-]{0,252})$/;
+
+interface WindowStats {
+  checks: number;
+  uptime: number | null;
+  avgLatency: number | null;
+  maxLatency: number | null;
+  avgLoss: number | null;
+}
 
 @Component({
   selector: 'app-monitoring-page',
@@ -24,37 +40,11 @@ const HOST = /^[a-zA-Z0-9]([a-zA-Z0-9.:-]{0,252})$/;
     LoadError,
     Loading,
     LineChart,
+    AvailabilityStrip,
     RelativePipe,
-    DateTimePipe,
   ],
   templateUrl: './monitoring.page.html',
-  styles: `
-    .layout {
-      display: grid;
-      gap: var(--space-4);
-    }
-    .ranges {
-      margin-left: auto;
-    }
-    .chart-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--space-4);
-      font-size: var(--text-xs);
-      color: var(--color-text-tertiary);
-    }
-    .error-cell {
-      max-width: 260px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      color: var(--color-error);
-    }
-    .actions {
-      display: flex;
-      gap: var(--space-1);
-      justify-content: flex-end;
-    }
-  `,
+  styleUrl: './monitoring.page.scss',
 })
 export class MonitoringPage {
   private readonly system = inject(SystemService);
@@ -63,9 +53,11 @@ export class MonitoringPage {
   protected readonly targets = this.system.targetsResource();
   protected readonly selectedId = signal<number | undefined>(undefined);
   protected readonly hours = signal(24);
-  protected readonly series = this.system.seriesResource(this.selectedId, this.hours);
+  // Twice the visible window, so the current period can be compared with the one before it.
+  protected readonly series = this.system.seriesResource(this.selectedId, () => this.hours() * 2);
   protected readonly ranges = [
     { hours: 1, label: '1 h' },
+    { hours: 6, label: '6 h' },
     { hours: 24, label: '24 h' },
     { hours: 24 * 7, label: '7 d' },
     { hours: 24 * 30, label: '30 d' },
@@ -73,14 +65,31 @@ export class MonitoringPage {
 
   protected readonly selected = computed(() =>
     this.targets.hasValue()
-      ? this.targets.value().find((target) => target.id === this.selectedId())
+      ? this.targets.value().find((t) => t.id === this.selectedId())
       : undefined,
   );
+
+  private readonly split = computed(() => {
+    const points = this.series.hasValue() ? this.series.value().points : [];
+    const cutoff = Date.now() - this.hours() * 3_600_000;
+    return {
+      current: points.filter((p) => new Date(p.at).getTime() >= cutoff),
+      previous: points.filter((p) => new Date(p.at).getTime() < cutoff),
+    };
+  });
+
+  protected readonly current = computed(() => this.split().current);
+  protected readonly stats = computed(() => ({
+    current: summarize(this.split().current),
+    previous: summarize(this.split().previous),
+  }));
   protected readonly latencyPoints = computed(() =>
-    this.series.hasValue()
-      ? this.series.value().points.map((point) => ({ at: point.at, value: point.avgLatencyMs }))
-      : [],
+    this.current().map((p) => ({ at: p.at, value: p.avgLatencyMs, max: p.maxLatencyMs })),
   );
+  protected readonly lossPoints = computed(() =>
+    this.current().map((p) => ({ at: p.at, value: p.avgPacketLossPercent })),
+  );
+  protected readonly hasLoss = computed(() => this.lossPoints().some((p) => p.value !== null));
 
   protected readonly showForm = signal(false);
   protected readonly formError = signal<string | null>(null);
@@ -93,9 +102,19 @@ export class MonitoringPage {
   });
 
   constructor() {
+    // Select the first target once the list arrives, so the page never opens on an empty detail.
+    effect(() => {
+      if (
+        this.selectedId() === undefined &&
+        this.targets.hasValue() &&
+        this.targets.value().length > 0
+      ) {
+        this.selectedId.set(this.targets.value()[0]!.id);
+      }
+    });
     pollWhileVisible(() => {
       this.targets.reload();
-      if (this.selectedId()) this.series.reload();
+      this.series.reload();
     }, 30_000);
   }
 
@@ -103,8 +122,10 @@ export class MonitoringPage {
     return value === null || value === undefined ? '—' : value + unit;
   }
 
-  protected select(target: MonitoringTarget) {
-    this.selectedId.set(this.selectedId() === target.id ? undefined : target.id);
+  /** Signed change against the previous window, or null when either side has no data. */
+  protected delta(current: number | null, previous: number | null): number | null {
+    if (current === null || previous === null) return null;
+    return Math.round((current - previous) * 100) / 100;
   }
 
   protected create() {
@@ -122,10 +143,11 @@ export class MonitoringPage {
         dnsQueryName: value.kind === 'dns' ? value.dnsQueryName.trim() : null,
       })
       .subscribe({
-        next: () => {
+        next: (target) => {
           this.showForm.set(false);
           this.form.reset();
           this.targets.reload();
+          this.selectedId.set(target.id);
         },
         error: (err: unknown) => this.formError.set(toApiError(err).message),
       });
@@ -136,7 +158,7 @@ export class MonitoringPage {
     this.system.checkTarget(target.id).subscribe({
       next: () => {
         this.targets.reload();
-        if (this.selectedId() === target.id) this.series.reload();
+        this.series.reload();
       },
       error: (err: unknown) => this.actionError.set(toApiError(err).message),
     });
@@ -159,10 +181,32 @@ export class MonitoringPage {
     if (!confirmed) return;
     this.system.deleteTarget(target.id).subscribe({
       next: () => {
-        if (this.selectedId() === target.id) this.selectedId.set(undefined);
+        this.selectedId.set(undefined);
         this.targets.reload();
       },
       error: (err: unknown) => this.actionError.set(toApiError(err).message),
     });
   }
+}
+
+/** Check-weighted statistics over a set of buckets; null where nothing was measured. */
+function summarize(points: SeriesPoint[]): WindowStats {
+  const checks = points.reduce((sum, p) => sum + p.checks, 0);
+  const successes = points.reduce((sum, p) => sum + p.successes, 0);
+  const weighted = (pick: (p: SeriesPoint) => number | null) => {
+    const measured = points.filter((p) => pick(p) !== null);
+    const weight = measured.reduce((sum, p) => sum + p.checks, 0);
+    return weight === 0
+      ? null
+      : Math.round((measured.reduce((sum, p) => sum + pick(p)! * p.checks, 0) / weight) * 100) /
+          100;
+  };
+  const maxima = points.map((p) => p.maxLatencyMs).filter((v): v is number => v !== null);
+  return {
+    checks,
+    uptime: checks === 0 ? null : Math.round((successes / checks) * 10000) / 100,
+    avgLatency: weighted((p) => p.avgLatencyMs),
+    maxLatency: maxima.length ? Math.max(...maxima) : null,
+    avgLoss: weighted((p) => p.avgPacketLossPercent),
+  };
 }

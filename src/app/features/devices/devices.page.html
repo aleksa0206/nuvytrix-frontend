@@ -1,8 +1,11 @@
 <div class="page">
   <app-page-header
     title="Devices"
-    description="Hosts found by nmap ping scans of the local network. Fields nmap could not determine are shown as unavailable."
+    description="Hosts found by nmap ping scans of the LAN. Fields nmap could not determine are marked as unavailable."
   >
+    <button type="button" class="btn" (click)="showScans.set(!showScans())">
+      {{ showScans() ? 'Hide scan history' : 'Scan history' }}
+    </button>
     <button type="button" class="btn btn--primary" [disabled]="activeScan()" (click)="startScan()">
       {{ activeScan() ? 'Scanning ' + activeScan()!.target + '…' : 'Scan network' }}
     </button>
@@ -12,142 +15,219 @@
     <p class="notice notice--error" role="alert">{{ scanError() }}</p>
   }
 
-  <section class="panel">
-    <div class="panel__header">
-      <div class="toolbar">
-        <div class="segmented" role="group" aria-label="Status">
-          @for (option of statusFilters; track option.label) {
-            <button
-              type="button"
-              [attr.aria-pressed]="query().status === option.value"
-              (click)="setStatus(option.value)"
-            >
-              {{ option.label }}
-            </button>
-          }
-        </div>
+  @if (showScans() && scans.hasValue()) {
+    <section class="panel">
+      <header class="panel__header"><h2>Recent scans</h2></header>
+      <div class="table-wrap">
+        <table class="table table--compact">
+          <thead>
+            <tr>
+              <th scope="col">Started</th>
+              <th scope="col">Target</th>
+              <th scope="col">Result</th>
+              <th scope="col" class="align-right">Hosts up</th>
+              <th scope="col" class="align-right">New</th>
+              <th scope="col">Trigger</th>
+              <th scope="col">Error</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (scan of scans.value().data; track scan.id) {
+              <tr>
+                <td class="mono">{{ scan.startedAt | dateTime }}</td>
+                <td class="mono">{{ scan.target }}</td>
+                <td><app-state-badge [state]="scan.status" /></td>
+                <td class="align-right mono">{{ scan.hostsUp ?? '—' }}</td>
+                <td class="align-right mono">{{ scan.newDevices ?? '—' }}</td>
+                <td class="text-secondary">{{ scan.scheduled ? 'Scheduled' : 'Manual' }}</td>
+                <td class="error-cell">{{ scan.error ?? '' }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="7" class="text-tertiary">No scans yet.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
       </div>
-      <input
-        class="input search"
-        type="search"
-        placeholder="Search name, IP, MAC, vendor"
-        aria-label="Search devices"
-        (input)="onSearch($any($event.target).value)"
-      />
-    </div>
+    </section>
+  }
 
-    @if (list.isLoading()) {
-      <app-loading />
-    }
-    @if (list.error(); as error) {
-      <app-load-error [error]="error" (retry)="list.reload()" />
-    }
-
-    @if (list.hasValue()) {
-      @let page = list.value();
-      @if (page.meta.total === 0 && !query().search && !query().status) {
-        <app-empty-state
-          title="No devices discovered yet"
-          description="Start a scan. It sends a ping sweep to the allowed local network and records every host that answers."
+  <div class="layout" [class.has-panel]="selectedId()">
+    <section class="panel">
+      <div class="panel__header toolbar-row">
+        <div class="segmented" role="group" aria-label="Status filter">
+          <button
+            type="button"
+            [attr.aria-pressed]="!query().status"
+            (click)="setStatus(undefined)"
+          >
+            All
+            @if (counts.hasValue()) {
+              <span class="count">{{ counts.value().devices.total }}</span>
+            }
+          </button>
+          <button
+            type="button"
+            [attr.aria-pressed]="query().status === 'online'"
+            (click)="setStatus('online')"
+          >
+            Online
+            @if (counts.hasValue()) {
+              <span class="count">{{ counts.value().devices.online }}</span>
+            }
+          </button>
+          <button
+            type="button"
+            [attr.aria-pressed]="query().status === 'offline'"
+            (click)="setStatus('offline')"
+          >
+            Offline
+            @if (counts.hasValue()) {
+              <span class="count">{{
+                counts.value().devices.total - counts.value().devices.online
+              }}</span>
+            }
+          </button>
+          <button
+            type="button"
+            [attr.aria-pressed]="query().status === 'new'"
+            (click)="setStatus('new')"
+          >
+            New
+            @if (counts.hasValue()) {
+              <span class="count">{{ counts.value().devices.newLast24h }}</span>
+            }
+          </button>
+        </div>
+        <input
+          class="input search"
+          type="search"
+          placeholder="Filter by name, IP, MAC, vendor"
+          aria-label="Filter devices"
+          [value]="query().search ?? ''"
+          (input)="onSearch($any($event.target).value)"
         />
-      } @else if (page.meta.total === 0) {
-        <app-empty-state title="No devices match these filters" />
-      } @else {
-        <div class="table-wrap">
-          <table class="table">
-            <thead>
-              <tr>
-                <th scope="col">Status</th>
-                <th scope="col">
-                  <button type="button" class="sort-button" (click)="sortBy('name')">
-                    Name{{ sortIndicator('name') }}
-                  </button>
-                </th>
-                <th scope="col">
-                  <button type="button" class="sort-button" (click)="sortBy('ip_address')">
-                    IP address{{ sortIndicator('ip_address') }}
-                  </button>
-                </th>
-                <th scope="col">MAC address</th>
-                <th scope="col">Vendor</th>
-                <th scope="col">
-                  <button type="button" class="sort-button" (click)="sortBy('last_seen_at')">
-                    Last seen{{ sortIndicator('last_seen_at') }}
-                  </button>
-                </th>
-                <th scope="col">
-                  <button type="button" class="sort-button" (click)="sortBy('first_seen_at')">
-                    First seen{{ sortIndicator('first_seen_at') }}
-                  </button>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (device of page.data; track device.id) {
-                <tr class="is-clickable" (click)="open(device.id)">
-                  <td><app-state-badge [state]="device.status" /></td>
-                  <td>
-                    <a [routerLink]="['/devices', device.id]" (click)="$event.stopPropagation()">
-                      {{ device.customName ?? device.hostname ?? 'Unnamed device' }}
-                    </a>
-                    @if (device.isNew) {
-                      <span class="tag">New</span>
-                    }
-                  </td>
-                  <td class="mono">{{ device.ipAddress }}</td>
-                  <td class="mono" [class.text-tertiary]="!device.macAddress">
-                    {{ device.macAddress ?? 'Unavailable' }}
-                  </td>
-                  <td [class.text-tertiary]="!device.vendor">{{ device.vendor ?? 'Unknown' }}</td>
-                  <td [title]="device.lastSeenAt | dateTime">{{ device.lastSeenAt | relative }}</td>
-                  <td [title]="device.firstSeenAt | dateTime">
-                    {{ device.firstSeenAt | relative }}
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-        <app-pagination [meta]="page.meta" (pageChange)="setPage($event)" />
-      }
-    }
-  </section>
+      </div>
 
-  <section class="panel">
-    <header class="panel__header"><h2>Recent scans</h2></header>
-    @if (scans.hasValue()) {
-      @if (scans.value().data.length === 0) {
-        <app-empty-state title="No scans yet" />
-      } @else {
-        <div class="table-wrap">
-          <table class="table">
-            <thead>
-              <tr>
-                <th scope="col">Started</th>
-                <th scope="col">Target</th>
-                <th scope="col">Status</th>
-                <th scope="col" class="align-right">Hosts up</th>
-                <th scope="col" class="align-right">New</th>
-                <th scope="col">Trigger</th>
-                <th scope="col">Error</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (scan of scans.value().data; track scan.id) {
-                <tr>
-                  <td>{{ scan.startedAt | dateTime }}</td>
-                  <td class="mono">{{ scan.target }}</td>
-                  <td><app-state-badge [state]="scan.status" /></td>
-                  <td class="align-right num">{{ scan.hostsUp ?? '—' }}</td>
-                  <td class="align-right num">{{ scan.newDevices ?? '—' }}</td>
-                  <td class="text-secondary">{{ scan.scheduled ? 'Scheduled' : 'Manual' }}</td>
-                  <td class="error-cell">{{ scan.error ?? '' }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
+      @if (list.isLoading()) {
+        <app-loading />
       }
+      @if (list.error(); as error) {
+        <app-load-error [error]="error" (retry)="list.reload()" />
+      }
+
+      @if (list.hasValue()) {
+        @let page = list.value();
+        @if (page.meta.total === 0 && !query().search && !query().status) {
+          <app-empty-state
+            title="No devices discovered yet"
+            description="A scan pings every address in the allowed LAN range and records each host that answers."
+          >
+            <button type="button" class="btn btn--primary" (click)="startScan()">
+              Scan network
+            </button>
+          </app-empty-state>
+        } @else if (page.meta.total === 0) {
+          <app-empty-state title="No devices match these filters" />
+        } @else {
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th scope="col" class="col-status">
+                    <span class="visually-hidden">Status</span>
+                  </th>
+                  <th scope="col">
+                    <button type="button" class="sort-button" (click)="sortBy('name')">
+                      Device{{ sortIndicator('name') }}
+                    </button>
+                  </th>
+                  <th scope="col">
+                    <button type="button" class="sort-button" (click)="sortBy('ip_address')">
+                      IP address{{ sortIndicator('ip_address') }}
+                    </button>
+                  </th>
+                  <th scope="col">MAC / vendor</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">
+                    <button type="button" class="sort-button" (click)="sortBy('last_seen_at')">
+                      Last seen{{ sortIndicator('last_seen_at') }}
+                    </button>
+                  </th>
+                  <th scope="col" class="hide-narrow">
+                    <button type="button" class="sort-button" (click)="sortBy('first_seen_at')">
+                      First seen{{ sortIndicator('first_seen_at') }}
+                    </button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (device of page.data; track device.id) {
+                  <tr
+                    class="is-clickable"
+                    [class.is-selected]="device.id === selectedId()"
+                    [class.is-offline]="device.status === 'offline'"
+                    tabindex="0"
+                    (click)="select(device.id)"
+                    (keydown.enter)="select(device.id)"
+                  >
+                    <td class="col-status">
+                      <app-state-badge [state]="device.status" [compact]="true" />
+                    </td>
+                    <td>
+                      <div class="device-cell">
+                        <app-icon [name]="iconFor(device.deviceType)" />
+                        <div class="cell-stack">
+                          <span>
+                            {{
+                              device.customName ??
+                                device.hostname ??
+                                (device.vendor ? device.vendor + ' device' : 'Unnamed device')
+                            }}
+                            @if (device.isNew) {
+                              <span class="chip chip--accent">NEW</span>
+                            }
+                          </span>
+                          <small>{{
+                            device.customName && device.hostname ? device.hostname : ''
+                          }}</small>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="mono">{{ device.ipAddress }}</td>
+                    <td>
+                      <div class="cell-stack">
+                        <span class="mono" [class.text-tertiary]="!device.macAddress">{{
+                          device.macAddress ?? 'not available'
+                        }}</span>
+                        <small>{{ device.vendor ?? 'Unknown vendor' }}</small>
+                      </div>
+                    </td>
+                    <td class="text-secondary">
+                      {{ device.deviceType ? typeLabels[device.deviceType] : '—' }}
+                    </td>
+                    <td [title]="device.lastSeenAt | dateTime">
+                      {{ device.lastSeenAt | relative }}
+                    </td>
+                    <td
+                      class="hide-narrow text-tertiary mono"
+                      [title]="device.firstSeenAt | dateTime"
+                    >
+                      {{ (device.firstSeenAt | dateTime).slice(0, 10) }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <app-pagination [meta]="page.meta" (pageChange)="setPage($event)" />
+        }
+      }
+    </section>
+
+    @if (selectedId(); as id) {
+      <app-device-panel [deviceId]="id" (closed)="select(null)" (saved)="list.reload()" />
     }
-  </section>
+  </div>
 </div>

@@ -1,58 +1,37 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet, Routes } from '@angular/router';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, NavigationEnd, Router, RouterOutlet, Routes } from '@angular/router';
+import { filter, map, startWith } from 'rxjs';
 import { PageHeader } from '../../shared/ui/page-header';
 
+interface SectionData {
+  heading: string;
+  description: string;
+}
+
+/** Shared page frame for the firewall sections; each section has its own entry in the sidebar. */
 @Component({
   selector: 'app-firewall-layout',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, PageHeader],
+  imports: [RouterOutlet, PageHeader],
   template: `
     <div class="page">
-      <app-page-header
-        title="Firewall"
-        description="Events from the Huawei router's firewall log (imported by hand) and the firewall rules you intend to apply."
-      />
-      <nav class="tabs" aria-label="Firewall sections">
-        @for (tab of tabs; track tab.path) {
-          <a [routerLink]="tab.path" routerLinkActive="is-active" ariaCurrentWhenActive="page">{{
-            tab.label
-          }}</a>
-        }
-      </nav>
+      @if (section(); as s) {
+        <app-page-header [title]="s.heading" [description]="s.description" />
+      }
       <router-outlet />
     </div>
   `,
-  styles: `
-    .tabs {
-      display: flex;
-      gap: var(--space-1);
-      border-bottom: 1px solid var(--color-border);
-      overflow-x: auto;
-    }
-    .tabs a {
-      padding: var(--space-2) var(--space-3);
-      margin-bottom: -1px;
-      border-bottom: 2px solid transparent;
-      color: var(--color-text-secondary);
-      font-size: var(--text-sm);
-      white-space: nowrap;
-    }
-    .tabs a:hover {
-      color: var(--color-text);
-    }
-    .tabs a.is-active {
-      border-bottom-color: var(--color-accent);
-      color: var(--color-text);
-    }
-  `,
 })
 export class FirewallLayout {
-  protected readonly tabs = [
-    { path: 'events', label: 'Events' },
-    { path: 'insights', label: 'Insights' },
-    { path: 'imports', label: 'Log imports' },
-    { path: 'policies', label: 'Rules' },
-  ];
+  private readonly route = inject(ActivatedRoute);
+  protected readonly section = toSignal(
+    inject(Router).events.pipe(
+      filter((event) => event instanceof NavigationEnd),
+      startWith(null),
+      map(() => this.route.firstChild?.snapshot.data as SectionData | undefined),
+    ),
+  );
 }
 
 export const FIREWALL_ROUTES: Routes = [
@@ -64,21 +43,41 @@ export const FIREWALL_ROUTES: Routes = [
       {
         path: 'events',
         title: 'Firewall events · Nuvytrix',
+        data: {
+          heading: 'Firewall events',
+          description:
+            "Entries from the Huawei router's firewall log, imported by hand. Each row is one logged packet decision.",
+        },
         loadComponent: () => import('./events.page').then((m) => m.EventsPage),
       },
       {
         path: 'insights',
         title: 'Firewall insights · Nuvytrix',
+        data: {
+          heading: 'Insights',
+          description:
+            'Patterns in the imported log. Observations, not verdicts: a denied packet was blocked.',
+        },
         loadComponent: () => import('./insights.page').then((m) => m.InsightsPage),
       },
       {
         path: 'imports',
         title: 'Firewall log imports · Nuvytrix',
+        data: {
+          heading: 'Log imports',
+          description:
+            'Upload the file downloaded from the router. Duplicates are skipped and unreadable lines are kept with a reason.',
+        },
         loadComponent: () => import('./imports.page').then((m) => m.ImportsPage),
       },
       {
         path: 'policies',
         title: 'Firewall rules · Nuvytrix',
+        data: {
+          heading: 'Firewall rules',
+          description:
+            'Intended rules for the router, applied by hand. Status records what you did; the router is never queried.',
+        },
         loadComponent: () => import('./policies.page').then((m) => m.PoliciesPage),
       },
     ],

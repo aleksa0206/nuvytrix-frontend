@@ -11,7 +11,7 @@ const STATES: Record<string, { tone: Tone; label: string }> = {
   up: { tone: 'ok', label: 'Up' },
   degraded: { tone: 'warning', label: 'Degraded' },
   down: { tone: 'error', label: 'Down' },
-  disabled: { tone: 'muted', label: 'Disabled' },
+  disabled: { tone: 'muted', label: 'Paused' },
   online: { tone: 'ok', label: 'Online' },
   offline: { tone: 'muted', label: 'Offline' },
   running: { tone: 'accent', label: 'Running' },
@@ -31,47 +31,65 @@ const STATES: Record<string, { tone: Tone; label: string }> = {
   retired: { tone: 'unknown', label: 'Retired' },
 };
 
-/** Dot + label for any state value the API returns. Color is never the only signal. */
+/** Status LED + label for any state value the API returns. Color is never the only signal. */
 @Component({
   selector: 'app-state-badge',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<span class="dot" aria-hidden="true"></span>{{ label() ?? meta().label }}`,
-  host: { '[class]': '"tone-" + meta().tone' },
+  template: `<span class="led" aria-hidden="true"></span>
+    @if (!compact()) {
+      <span class="label">{{ label() ?? meta().label }}</span>
+    } @else {
+      <span class="visually-hidden">{{ label() ?? meta().label }}</span>
+    }`,
+  host: {
+    '[class]': '"tone-" + meta().tone',
+    '[attr.title]': 'compact() ? (label() ?? meta().label) : null',
+  },
   styles: `
     :host {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 7px;
       font-size: var(--text-sm);
       white-space: nowrap;
       color: var(--color-text-secondary);
     }
-    .dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
+    .led {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
       background: var(--tone);
+      box-shadow: 0 0 0 2px var(--tone-ring);
       flex: none;
     }
     :host(.tone-ok) {
       --tone: var(--color-ok);
+      --tone-ring: var(--color-ok-subtle);
     }
     :host(.tone-warning) {
       --tone: var(--color-warning);
+      --tone-ring: var(--color-warning-subtle);
     }
     :host(.tone-error) {
       --tone: var(--color-error);
+      --tone-ring: var(--color-error-subtle);
+    }
+    :host(.tone-error) .label {
+      color: var(--color-error);
     }
     :host(.tone-unknown) {
       --tone: var(--color-unknown);
+      --tone-ring: var(--color-unknown-subtle);
     }
     :host(.tone-accent) {
       --tone: var(--color-accent);
+      --tone-ring: var(--color-accent-subtle);
     }
     :host(.tone-muted) {
       --tone: transparent;
+      --tone-ring: transparent;
     }
-    :host(.tone-muted) .dot {
+    :host(.tone-muted) .led {
       box-shadow: inset 0 0 0 1.5px var(--color-text-tertiary);
     }
   `,
@@ -79,6 +97,8 @@ const STATES: Record<string, { tone: Tone; label: string }> = {
 export class StateBadge {
   readonly state = input.required<string>();
   readonly label = input<string>();
+  /** LED only; the label moves into a tooltip and screen-reader text. */
+  readonly compact = input(false);
   protected readonly meta = computed(
     () => STATES[this.state()] ?? { tone: 'unknown' as Tone, label: this.state() },
   );

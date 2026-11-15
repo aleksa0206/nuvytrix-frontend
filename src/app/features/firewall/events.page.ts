@@ -8,8 +8,8 @@ import {
 import { FirewallService } from '../../core/services/firewall.service';
 import { EmptyState, LoadError, Loading } from '../../shared/ui/feedback';
 import { Pagination } from '../../shared/ui/pagination';
-import { StateBadge } from '../../shared/ui/state-badge';
-import { DateTimePipe, EndpointPipe } from '../../shared/util/format.pipes';
+import { formatDateTime } from '../../shared/util/format';
+import { DateTimePipe, EndpointPipe, NumberPipe } from '../../shared/util/format.pipes';
 
 const IP_PATTERN = /^[0-9a-fA-F:.]{2,45}$/;
 
@@ -18,13 +18,13 @@ const IP_PATTERN = /^[0-9a-fA-F:.]{2,45}$/;
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterLink,
-    StateBadge,
     LoadError,
     Loading,
     EmptyState,
     Pagination,
     DateTimePipe,
     EndpointPipe,
+    NumberPipe,
   ],
   templateUrl: './events.page.html',
   styleUrl: './events.page.scss',
@@ -44,6 +44,36 @@ export class EventsPage {
   protected readonly selected = this.firewall.eventResource(this.selectedId);
   protected readonly ipError = signal(false);
   protected readonly directionLabels = DIRECTION_LABELS;
+  protected readonly summary = this.firewall.summaryResource();
+
+  /** Hourly bars scaled to the busiest hour, stacked denied over allowed. */
+  protected readonly bars = computed(() => {
+    const summary = this.summary.hasValue() ? this.summary.value() : null;
+    if (!summary?.hasData) return [];
+    // One slot per hour of the range, so hours without any logged event show as empty, not missing.
+    const counts = new Map(summary.timeline.map((hour) => [new Date(hour.bucket).getTime(), hour]));
+    const hourMs = 3_600_000;
+    const start = Math.floor(new Date(summary.range.from).getTime() / hourMs) * hourMs;
+    const end = new Date(summary.range.to).getTime();
+    const slots = [];
+    for (let time = start; time <= end; time += hourMs) {
+      const hour = counts.get(time);
+      slots.push({ bucket: time, denied: hour?.denied ?? 0, accepted: hour?.accepted ?? 0 });
+    }
+    const max = Math.max(1, ...slots.map((slot) => slot.denied + slot.accepted));
+    return slots.map((slot) => ({
+      bucket: slot.bucket,
+      denied: (slot.denied / max) * 100,
+      accepted: (slot.accepted / max) * 100,
+      title:
+        formatDateTime(new Date(slot.bucket)) +
+        ': ' +
+        slot.denied +
+        ' denied, ' +
+        slot.accepted +
+        ' allowed',
+    }));
+  });
 
   protected readonly hasFilters = computed(() => {
     const { action, direction, flow, protocol, ipVersion, ip, port } = this.query();
@@ -56,6 +86,15 @@ export class EventsPage {
 
   protected setFilter(key: 'action' | 'direction' | 'flow' | 'protocol', value: string) {
     this.update({ [key]: value || undefined });
+  }
+
+  /** One select covers both the coarse flow (in/out) and the exact router direction. */
+  protected setDirection(value: string) {
+    const isFlow = value === 'inbound' || value === 'outbound';
+    this.update({
+      flow: isFlow ? (value as FirewallEventQuery['flow']) : undefined,
+      direction: !isFlow && value ? (value as FirewallDirection) : undefined,
+    });
   }
 
   protected setIpVersion(value: string) {

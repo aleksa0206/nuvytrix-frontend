@@ -1,35 +1,180 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
 import { pollWhileVisible } from '../../core/polling';
+import { DIRECTION_LABELS, type FirewallDirection } from '../../core/models/firewall.model';
+import type { Overview } from '../../core/models/system.model';
+import { DevicesService } from '../../core/services/devices.service';
+import { FirewallService } from '../../core/services/firewall.service';
 import { SystemService } from '../../core/services/system.service';
+import { AvailabilityStrip } from '../../shared/ui/availability-strip';
 import { EmptyState, LoadError, Loading } from '../../shared/ui/feedback';
-import { PageHeader } from '../../shared/ui/page-header';
+import { LineChart } from '../../shared/ui/line-chart';
 import { StateBadge } from '../../shared/ui/state-badge';
+import { TopologyMap } from '../../shared/ui/topology-map';
 import { formatDuration } from '../../shared/util/format';
-import { DateTimePipe, NumberPipe, RelativePipe } from '../../shared/util/format.pipes';
+import {
+  DateTimePipe,
+  EndpointPipe,
+  NumberPipe,
+  RelativePipe,
+} from '../../shared/util/format.pipes';
+
+interface Attention {
+  severity: 'error' | 'warning';
+  title: string;
+  detail: string;
+  link: string;
+  query?: Record<string, string>;
+}
 
 @Component({
   selector: 'app-overview-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterLink,
-    PageHeader,
     StateBadge,
     LoadError,
     Loading,
     EmptyState,
+    LineChart,
+    AvailabilityStrip,
+    TopologyMap,
     NumberPipe,
     RelativePipe,
     DateTimePipe,
+    EndpointPipe,
   ],
   templateUrl: './overview.page.html',
   styleUrl: './overview.page.scss',
 })
 export class OverviewPage {
-  protected readonly overview = inject(SystemService).overviewResource();
+  private readonly system = inject(SystemService);
+  private readonly router = inject(Router);
+
+  protected readonly overview = this.system.overviewResource();
+  protected readonly targets = this.system.targetsResource();
+  protected readonly devices = inject(DevicesService).listResource(() => ({
+    page: 1,
+    pageSize: 200,
+    sort: 'ip_address',
+    order: 'asc',
+  }));
+  protected readonly events = inject(FirewallService).eventsResource(() => ({
+    page: 1,
+    pageSize: 8,
+    sort: 'occurred_at',
+    order: 'desc',
+  }));
+  protected readonly changes = this.system.auditResource(() => 1);
+
+  private readonly routerTargetId = computed(() =>
+    this.targets.hasValue() ? this.targets.value().find((target) => target.managed)?.id : undefined,
+  );
+  protected readonly routerSeries = this.system.seriesResource(this.routerTargetId, signal(24));
+  protected readonly latencyPoints = computed(() =>
+    this.routerSeries.hasValue()
+      ? this.routerSeries
+          .value()
+          .points.map((p) => ({ at: p.at, value: p.avgLatencyMs, max: p.maxLatencyMs }))
+      : [],
+  );
+
+  protected readonly attention = computed<Attention[]>(() =>
+    this.overview.hasValue() ? attentionItems(this.overview.value()) : [],
+  );
+
   protected readonly formatDuration = formatDuration;
+  protected readonly directionLabels = DIRECTION_LABELS;
 
   constructor() {
-    pollWhileVisible(() => this.overview.reload(), 30_000);
+    pollWhileVisible(() => {
+      this.overview.reload();
+      this.targets.reload();
+      this.routerSeries.reload();
+    }, 30_000);
   }
+
+  protected openDevice(id: number) {
+    this.router.navigate(['/devices'], { queryParams: { device: id } });
+  }
+
+  protected directionLabel(direction: FirewallDirection | null, raw: string | null): string {
+    return direction ? DIRECTION_LABELS[direction] : (raw ?? '—');
+  }
+
+  protected changeLabel(action: string): string {
+    return action.replace('.', ': ').replace(/_/g, ' ');
+  }
+}
+
+/** Only conditions that need a decision or a look; healthy areas stay out of this list. */
+function attentionItems(o: Overview): Attention[] {
+  const items: Attention[] = [];
+  if (o.router.state === 'error') {
+    items.push({
+      severity: 'error',
+      title: 'Router not responding',
+      detail: `${o.router.host} did not answer the last ping`,
+      link: '/monitoring',
+    });
+  }
+  for (const target of o.monitoring.failing) {
+    if (target.name === 'Router') continue;
+    items.push({
+      severity: 'error',
+      title: `${target.name} is down`,
+      detail: 'Last check failed',
+      link: '/monitoring',
+    });
+  }
+  if (o.devices.latestScan?.status === 'failed') {
+    items.push({
+      severity: 'error',
+      title: 'Last discovery scan failed',
+      detail: o.devices.latestScan.error ?? '',
+      link: '/devices',
+    });
+  }
+  if (o.devices.newLast24h > 0) {
+    items.push({
+      severity: 'warning',
+      title: `${o.devices.newLast24h} new device${o.devices.newLast24h === 1 ? '' : 's'}`,
+      detail: 'First seen in the last 24 hours; identify and name them',
+      link: '/devices',
+      query: { status: 'new' },
+    });
+  }
+  if (o.firewall.hasData && o.firewall.acceptedInbound > 0) {
+    items.push({
+      severity: 'warning',
+      title: 'Inbound traffic was accepted',
+      detail: 'Connections from the internet passed the firewall',
+      link: '/firewall/insights',
+    });
+  }
+  if (o.firewall.hasData && o.firewall.repeatedDeniedSources > 0) {
+    items.push({
+      severity: 'warning',
+      title: `${o.firewall.repeatedDeniedSources} source${o.firewall.repeatedDeniedSources === 1 ? '' : 's'} with repeated denials`,
+      detail: 'Observed in the imported log; review before drawing conclusions',
+      link: '/firewall/insights',
+    });
+  }
+  if (o.policies.failed > 0) {
+    items.push({
+      severity: 'error',
+      title: `${o.policies.failed} rule${o.policies.failed === 1 ? '' : 's'} failed to apply`,
+      detail: 'Marked as failed on the router',
+      link: '/firewall/policies',
+    });
+  }
+  if (o.policies.pendingManual > 0) {
+    items.push({
+      severity: 'warning',
+      title: `${o.policies.pendingManual} rule${o.policies.pendingManual === 1 ? '' : 's'} waiting`,
+      detail: 'Ready to be applied by hand on the router',
+      link: '/firewall/policies',
+    });
+  }
+  return items;
 }

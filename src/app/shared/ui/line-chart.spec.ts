@@ -6,7 +6,7 @@ function render(points: { at: string; value: number | null }[], bucketMinutes = 
   fixture.componentRef.setInput('points', points);
   fixture.componentRef.setInput('bucketMinutes', bucketMinutes);
   fixture.detectChanges();
-  return (fixture.nativeElement as HTMLElement).querySelector('path')!.getAttribute('d') ?? '';
+  return (fixture.nativeElement as HTMLElement).querySelector('path.line')!.getAttribute('d') ?? '';
 }
 
 describe('LineChart', () => {

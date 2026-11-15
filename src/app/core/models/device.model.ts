@@ -16,6 +16,22 @@ export const DEVICE_TYPES = [
 
 export type DeviceType = (typeof DEVICE_TYPES)[number];
 
+export const DEVICE_TYPE_LABELS: Record<DeviceType, string> = {
+  router: 'Router',
+  switch: 'Switch',
+  access_point: 'Access point',
+  server: 'Server',
+  computer: 'Computer',
+  laptop: 'Laptop',
+  phone: 'Phone',
+  tablet: 'Tablet',
+  tv: 'TV',
+  printer: 'Printer',
+  iot: 'IoT',
+  console: 'Console',
+  other: 'Other',
+};
+
 export interface Device {
   id: number;
   ipAddress: string;

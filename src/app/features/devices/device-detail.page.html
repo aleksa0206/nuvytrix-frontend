@@ -52,7 +52,7 @@
             <select id="deviceType" class="select" formControlName="deviceType">
               <option value="">Not set</option>
               @for (type of deviceTypes; track type) {
-                <option [value]="type">{{ type.replace('_', ' ') }}</option>
+                <option [value]="type">{{ typeLabels[type] }}</option>
               }
             </select>
           </div>

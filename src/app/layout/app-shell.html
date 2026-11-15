@@ -1,34 +1,53 @@
 <a class="skip-link" href="#main">Skip to content</a>
 
-<header class="topbar">
-  <button
-    type="button"
-    class="btn btn--ghost menu-button"
-    [attr.aria-expanded]="navOpen()"
-    aria-controls="sidebar"
-    (click)="navOpen.set(!navOpen())"
-  >
-    Menu
-  </button>
-  <a routerLink="/overview" class="brand">Nuvytrix</a>
-</header>
-
 <nav id="sidebar" class="sidebar" [class.is-open]="navOpen()" aria-label="Main">
-  <a routerLink="/overview" class="brand brand--sidebar">Nuvytrix</a>
-  <ul class="nav">
-    @for (item of nav; track item.path) {
-      <li>
-        <a [routerLink]="item.path" routerLinkActive="is-active" ariaCurrentWhenActive="page">
-          {{ item.label }}
-        </a>
-      </li>
-    }
-  </ul>
+  <a routerLink="/overview" class="brand" aria-label="Nuvytrix overview">
+    <svg class="brand__mark" viewBox="0 0 20 20" aria-hidden="true">
+      <path
+        d="M3 16V4l7 8V4M10 16l7-12M14 16h3"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="square"
+      />
+    </svg>
+    <span class="brand__name">Nuvytrix</span>
+  </a>
+
+  @for (group of nav; track group.label) {
+    <div class="nav-group">
+      <h3 class="nav-group__label">{{ group.label }}</h3>
+      <ul>
+        @for (item of group.items; track item.path) {
+          <li>
+            <a [routerLink]="item.path" routerLinkActive="is-active" ariaCurrentWhenActive="page">
+              <app-icon [name]="item.icon" />
+              <span>{{ item.label }}</span>
+            </a>
+          </li>
+        }
+      </ul>
+    </div>
+  }
+
   <div class="sidebar__footer">
-    <span class="user">{{ auth.admin()?.username }}</span>
-    <div class="footer-actions">
-      <button type="button" class="btn btn--ghost btn--sm" (click)="theme.toggle()">
-        {{ theme.mode() === 'dark' ? 'Light theme' : 'Dark theme' }}
+    <div class="site">
+      <span class="site__label">Site</span>
+      <span class="site__value mono">{{
+        status.hasValue() ? (status.value().router.host ?? 'LAN') : 'LAN'
+      }}</span>
+    </div>
+    <div class="account">
+      <span class="account__name">{{ auth.admin()?.username }}</span>
+      <button
+        type="button"
+        class="btn btn--ghost btn--sm"
+        (click)="theme.toggle()"
+        [attr.aria-label]="
+          theme.mode() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'
+        "
+      >
+        {{ theme.mode() === 'dark' ? 'Light' : 'Dark' }}
       </button>
       <button type="button" class="btn btn--ghost btn--sm" (click)="signOut()">Sign out</button>
     </div>
@@ -39,8 +58,75 @@
   <div class="scrim" (click)="navOpen.set(false)" aria-hidden="true"></div>
 }
 
-<main id="main" tabindex="-1">
-  <router-outlet />
-</main>
+<div class="workspace">
+  <header class="topbar">
+    <button
+      type="button"
+      class="btn btn--ghost menu-button"
+      [attr.aria-expanded]="navOpen()"
+      aria-controls="sidebar"
+      aria-label="Menu"
+      (click)="navOpen.set(!navOpen())"
+    >
+      <app-icon name="menu" />
+    </button>
+
+    <form
+      class="quick-search"
+      role="search"
+      (submit)="$event.preventDefault(); search(searchInput.value)"
+    >
+      <app-icon name="search" />
+      <input
+        #searchInput
+        type="search"
+        placeholder="Find a device by name, IP or MAC"
+        aria-label="Find a device"
+      />
+    </form>
+
+    @if (status.hasValue()) {
+      @let s = status.value();
+      <ul class="status-bar" aria-label="Network status">
+        <li>
+          <a routerLink="/monitoring">
+            <app-state-badge [state]="s.router.state" [compact]="true" />
+            <span class="status-bar__label">Router</span>
+            <span class="status-bar__value mono">
+              @let routerLatency = s.router.lastCheck?.latencyMs ?? null;
+              {{ routerLatency !== null ? routerLatency + ' ms' : '—' }}
+            </span>
+          </a>
+        </li>
+        <li>
+          <a routerLink="/devices">
+            <app-state-badge [state]="s.devices.state" [compact]="true" />
+            <span class="status-bar__label">Online</span>
+            <span class="status-bar__value mono">{{ s.devices.online }}/{{ s.devices.total }}</span>
+          </a>
+        </li>
+        <li>
+          <a routerLink="/monitoring">
+            <app-state-badge [state]="s.monitoring.state" [compact]="true" />
+            <span class="status-bar__label">Checks</span>
+            <span class="status-bar__value mono">
+              {{ s.monitoring.targets - s.monitoring.failing.length }}/{{ s.monitoring.targets }}
+            </span>
+          </a>
+        </li>
+        <li class="status-bar__scan">
+          <span class="status-bar__label">Last scan</span>
+          <span class="status-bar__value">{{
+            s.devices.latestScan ? (s.devices.latestScan.startedAt | relative) : 'never'
+          }}</span>
+        </li>
+      </ul>
+    }
+  </header>
+
+  <main id="main" tabindex="-1">
+    <router-outlet />
+  </main>
+</div>
 
 <app-confirm-dialog />

@@ -1,25 +1,20 @@
-const dateTime = new Intl.DateTimeFormat(undefined, {
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-  hour12: false,
-});
-const shortTime = new Intl.DateTimeFormat(undefined, {
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-});
 const integer = new Intl.NumberFormat(undefined);
 
+const pad = (value: number) => String(value).padStart(2, '0');
+
+/** "2026-11-14 21:31:28" in local time: sortable and unambiguous, as network logs are. */
 export function formatDateTime(value: string | Date | null | undefined): string {
-  return value ? dateTime.format(new Date(value)) : '—';
+  if (!value) return '—';
+  const date = new Date(value);
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
+    `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+  );
 }
 
 export function formatTime(value: string | Date): string {
-  return shortTime.format(new Date(value));
+  const date = new Date(value);
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 export function formatNumber(value: number | null | undefined): string {

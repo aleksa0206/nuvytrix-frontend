@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, effect, inject, input, signal } fro
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { toApiError } from '../../core/api/api-error';
-import { DEVICE_TYPES, type DeviceType } from '../../core/models/device.model';
+import { DEVICE_TYPES, DEVICE_TYPE_LABELS, type DeviceType } from '../../core/models/device.model';
 import { DevicesService } from '../../core/services/devices.service';
 import { LoadError, Loading } from '../../shared/ui/feedback';
 import { PageHeader } from '../../shared/ui/page-header';
@@ -54,6 +54,7 @@ export class DeviceDetailPage {
   readonly id = input.required<string>();
   protected readonly device = this.devices.detailResource(() => Number(this.id()) || undefined);
   protected readonly deviceTypes = DEVICE_TYPES;
+  protected readonly typeLabels = DEVICE_TYPE_LABELS;
 
   protected readonly form = inject(NonNullableFormBuilder).group({
     customName: ['', Validators.maxLength(100)],

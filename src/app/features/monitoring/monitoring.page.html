@@ -1,7 +1,7 @@
 <div class="page">
   <app-page-header
     title="Monitoring"
-    description="Ping and DNS checks run from the server on a schedule. Uptime and charts use only recorded checks. Per-device traffic needs hardware this network does not have."
+    description="Ping and DNS checks run from the server on a schedule. Every figure and chart comes from recorded checks; gaps mean nothing was recorded."
   >
     <button type="button" class="btn btn--primary" (click)="showForm.set(!showForm())">
       Add target
@@ -24,8 +24,8 @@
           <div class="field">
             <label for="t-kind">Check</label>
             <select id="t-kind" class="select" formControlName="kind">
-              <option value="icmp">Ping (availability, latency, loss)</option>
-              <option value="dns">DNS resolution</option>
+              <option value="icmp">Ping: availability, latency, loss</option>
+              <option value="dns">DNS resolution time</option>
             </select>
           </div>
           <div class="field">
@@ -57,164 +57,219 @@
     </section>
   }
 
-  <div class="layout">
-    <section class="panel">
-      @if (targets.isLoading() && !targets.hasValue()) {
-        <app-loading />
-      }
-      @if (targets.error(); as error) {
-        <app-load-error [error]="error" (retry)="targets.reload()" />
-      }
-      @if (targets.hasValue()) {
-        @if (targets.value().length === 0) {
-          <app-empty-state
-            title="Nothing is monitored"
-            description="Set ROUTER_HOST in the API environment to monitor the router, and add targets such as the server or other key devices."
-          />
-        } @else {
-          <div class="table-wrap">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th scope="col">Status</th>
-                  <th scope="col">Name</th>
-                  <th scope="col">Check</th>
-                  <th scope="col" class="align-right">Latency</th>
-                  <th scope="col" class="align-right">Loss</th>
-                  <th scope="col" class="align-right">Uptime 24 h</th>
-                  <th scope="col">Last check</th>
-                  <th scope="col">Last error</th>
-                  <th scope="col"><span class="visually-hidden">Actions</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (target of targets.value(); track target.id) {
-                  <tr
-                    class="is-clickable"
-                    [class.is-selected]="target.id === selectedId()"
-                    tabindex="0"
-                    (click)="select(target)"
-                    (keydown.enter)="select(target)"
-                  >
-                    <td><app-state-badge [state]="target.status" /></td>
-                    <td>
-                      {{ target.name }}
-                      @if (target.managed) {
-                        <span class="text-tertiary">· from config</span>
-                      }
-                    </td>
-                    <td class="mono">
-                      {{
-                        target.kind === 'icmp'
-                          ? 'ping ' + target.host
-                          : target.dnsQueryName + ' @' + target.host
-                      }}
-                    </td>
-                    <td class="align-right num">
-                      {{ metric(target.lastCheck?.latencyMs, ' ms') }}
-                    </td>
-                    <td class="align-right num">
-                      {{ metric(target.lastCheck?.packetLossPercent, '%') }}
-                    </td>
-                    <td
-                      class="align-right num"
-                      [title]="target.window ? target.window.checks + ' checks' : 'No checks yet'"
-                    >
-                      {{ target.window ? target.window.uptimePercent + '%' : '—' }}
-                    </td>
-                    <td [title]="target.lastCheck?.checkedAt | dateTime">
-                      {{
-                        target.lastCheck
-                          ? (target.lastCheck.checkedAt | relative)
-                          : 'Not checked yet'
-                      }}
-                    </td>
-                    <td class="error-cell" [title]="target.lastCheck?.error ?? ''">
-                      {{ target.lastCheck?.success === false ? target.lastCheck.error : '' }}
-                    </td>
-                    <td>
-                      <div class="actions">
-                        <button
-                          type="button"
-                          class="btn btn--sm"
-                          (click)="$event.stopPropagation(); checkNow(target)"
-                        >
-                          Check now
-                        </button>
-                        @if (!target.managed) {
-                          <button
-                            type="button"
-                            class="btn btn--sm btn--ghost"
-                            (click)="$event.stopPropagation(); toggleEnabled(target)"
-                          >
-                            {{ target.enabled ? 'Pause' : 'Resume' }}
-                          </button>
-                          <button
-                            type="button"
-                            class="btn btn--sm btn--ghost"
-                            (click)="$event.stopPropagation(); remove(target)"
-                          >
-                            Delete
-                          </button>
-                        }
-                      </div>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        }
-      }
-    </section>
+  @if (targets.error(); as error) {
+    <app-load-error [error]="error" (retry)="targets.reload()" />
+  }
+  @if (targets.isLoading() && !targets.hasValue()) {
+    <app-loading />
+  }
 
-    @if (selected(); as target) {
+  @if (targets.hasValue()) {
+    @if (targets.value().length === 0) {
       <section class="panel">
-        <header class="panel__header">
-          <h2>{{ target.name }}: latency</h2>
-          <div class="segmented ranges" role="group" aria-label="Time range">
-            @for (range of ranges; track range.hours) {
-              <button
-                type="button"
-                [attr.aria-pressed]="hours() === range.hours"
-                (click)="hours.set(range.hours)"
-              >
-                {{ range.label }}
-              </button>
+        <app-empty-state
+          title="Nothing is monitored"
+          description="Set ROUTER_HOST in the API environment to monitor the router, and add targets such as the server or other key devices."
+        />
+      </section>
+    } @else {
+      <div class="layout">
+        <section class="panel targets" aria-label="Targets">
+          <header class="panel__header">
+            <h2>Targets</h2>
+            <span class="panel__meta">latency · 24 h uptime</span>
+          </header>
+          <ul>
+            @for (target of targets.value(); track target.id) {
+              <li>
+                <button
+                  type="button"
+                  class="target"
+                  [class.is-selected]="target.id === selectedId()"
+                  (click)="selectedId.set(target.id)"
+                >
+                  <app-state-badge [state]="target.status" [compact]="true" />
+                  <span class="target__text">
+                    <strong>{{ target.name }}</strong>
+                    <small class="mono">{{
+                      target.kind === 'icmp'
+                        ? target.host
+                        : target.dnsQueryName + ' @' + target.host
+                    }}</small>
+                  </span>
+                  <span class="target__figures mono">
+                    <span>{{ metric(target.lastCheck?.latencyMs, ' ms') }}</span>
+                    <small>{{ target.window ? target.window.uptimePercent + '%' : '—' }}</small>
+                  </span>
+                </button>
+              </li>
             }
-          </div>
-        </header>
-        <div class="panel__body stack">
-          @if (series.isLoading()) {
-            <app-loading />
-          }
-          @if (series.hasValue()) {
-            @if (latencyPoints().length === 0 || !series.value().points.length) {
-              <app-empty-state
-                title="No measurements in this period"
-                description="The chart appears once checks have been recorded. Nothing is filled in or estimated."
-              />
-            } @else {
-              <app-line-chart
-                [points]="latencyPoints()"
-                [bucketMinutes]="series.value().bucketMinutes"
-                unit=" ms"
-                [label]="'Average latency of ' + target.name"
-              />
-              <div class="chart-meta">
-                <span>Averaged per {{ series.value().bucketMinutes }} min</span>
-                <span>Gaps mean no successful check was recorded</span>
-                @if (target.window) {
-                  <span
-                    >24 h: {{ target.window.checks }} checks, {{ target.window.uptimePercent }}%
-                    up</span
-                  >
+          </ul>
+        </section>
+
+        @if (selected(); as target) {
+          <section class="panel detail">
+            <header class="panel__header detail__header">
+              <div class="detail__title">
+                <app-state-badge [state]="target.status" />
+                <h2>{{ target.name }}</h2>
+                <span class="chip">{{ target.kind === 'icmp' ? 'PING' : 'DNS' }}</span>
+                @if (target.managed) {
+                  <span class="text-tertiary small">from config</span>
                 }
               </div>
+              <div class="toolbar">
+                <div class="segmented" role="group" aria-label="Time range">
+                  @for (range of ranges; track range.hours) {
+                    <button
+                      type="button"
+                      [attr.aria-pressed]="hours() === range.hours"
+                      (click)="hours.set(range.hours)"
+                    >
+                      {{ range.label }}
+                    </button>
+                  }
+                </div>
+                <button type="button" class="btn btn--sm" (click)="checkNow(target)">
+                  Check now
+                </button>
+                @if (!target.managed) {
+                  <button
+                    type="button"
+                    class="btn btn--sm btn--ghost"
+                    (click)="toggleEnabled(target)"
+                  >
+                    {{ target.enabled ? 'Pause' : 'Resume' }}
+                  </button>
+                  <button type="button" class="btn btn--sm btn--ghost" (click)="remove(target)">
+                    Delete
+                  </button>
+                }
+              </div>
+            </header>
+
+            @let s = stats();
+            @let uptimeDelta = delta(s.current.uptime, s.previous.uptime);
+            @let latencyDelta = delta(s.current.avgLatency, s.previous.avgLatency);
+            <div class="kpis">
+              <div class="figure">
+                <span class="figure__label">Availability</span>
+                <span class="figure__value"
+                  >{{ s.current.uptime ?? '—'
+                  }}<small>{{ s.current.uptime !== null ? '%' : '' }}</small></span
+                >
+                <span class="figure__note">
+                  @if (uptimeDelta !== null) {
+                    <span [class.delta-up]="uptimeDelta < 0" [class.delta-down]="uptimeDelta > 0"
+                      >{{ uptimeDelta > 0 ? '+' : '' }}{{ uptimeDelta }} pp</span
+                    >
+                    vs previous {{ hours() < 24 ? hours() + ' h' : hours() / 24 + ' d' }}
+                  } @else {
+                    no earlier period to compare
+                  }
+                </span>
+              </div>
+              <div class="figure">
+                <span class="figure__label">Avg latency</span>
+                <span class="figure__value"
+                  >{{ s.current.avgLatency ?? '—'
+                  }}<small>{{ s.current.avgLatency !== null ? 'ms' : '' }}</small></span
+                >
+                <span class="figure__note">
+                  @if (latencyDelta !== null) {
+                    <span [class.delta-up]="latencyDelta > 0" [class.delta-down]="latencyDelta < 0"
+                      >{{ latencyDelta > 0 ? '+' : '' }}{{ latencyDelta }} ms</span
+                    >
+                    vs previous
+                  } @else {
+                    no earlier period to compare
+                  }
+                </span>
+              </div>
+              <div class="figure">
+                <span class="figure__label">Peak latency</span>
+                <span class="figure__value"
+                  >{{ s.current.maxLatency ?? '—'
+                  }}<small>{{ s.current.maxLatency !== null ? 'ms' : '' }}</small></span
+                >
+                <span class="figure__note">highest single check</span>
+              </div>
+              <div class="figure">
+                <span class="figure__label">Packet loss</span>
+                <span class="figure__value"
+                  >{{ s.current.avgLoss ?? '—'
+                  }}<small>{{ s.current.avgLoss !== null ? '%' : '' }}</small></span
+                >
+                <span class="figure__note">{{
+                  target.kind === 'dns' ? 'not measured for DNS' : 'average over checks'
+                }}</span>
+              </div>
+              <div class="figure">
+                <span class="figure__label">Checks</span>
+                <span class="figure__value">{{ s.current.checks }}</span>
+                <span class="figure__note"
+                  >last
+                  {{ target.lastCheck ? (target.lastCheck.checkedAt | relative) : 'never' }}</span
+                >
+              </div>
+            </div>
+
+            @if (target.lastCheck && !target.lastCheck.success) {
+              <p class="notice notice--error last-error">
+                Last check failed {{ target.lastCheck.checkedAt | relative }}:
+                <span class="mono">{{ target.lastCheck.error }}</span>
+              </p>
             }
-          }
-        </div>
-      </section>
+
+            @if (series.isLoading() && !series.hasValue()) {
+              <app-loading />
+            }
+            @if (series.hasValue()) {
+              @if (current().length === 0) {
+                <app-empty-state
+                  title="No measurements in this period"
+                  description="Nothing is filled in or estimated; choose a shorter range or wait for checks to run."
+                />
+              } @else {
+                <div class="charts">
+                  <div class="chart-block">
+                    <h3>
+                      {{ target.kind === 'dns' ? 'Resolution time' : 'Latency' }}
+                      <span>average per bucket, band up to the bucket maximum</span>
+                    </h3>
+                    <app-line-chart
+                      [points]="latencyPoints()"
+                      [bucketMinutes]="series.value().bucketMinutes"
+                      unit=" ms"
+                      [label]="'Latency of ' + target.name"
+                    />
+                  </div>
+                  <div class="chart-block">
+                    <h3>Availability</h3>
+                    <app-availability-strip
+                      [buckets]="current()"
+                      [hours]="hours()"
+                      [cellCount]="hours() <= 1 ? 60 : 96"
+                    />
+                  </div>
+                  @if (hasLoss()) {
+                    <div class="chart-block">
+                      <h3>Packet loss <span>percent of pings without reply</span></h3>
+                      <app-line-chart
+                        [points]="lossPoints()"
+                        [bucketMinutes]="series.value().bucketMinutes"
+                        unit=" %"
+                        [height]="110"
+                        [label]="'Packet loss of ' + target.name"
+                      />
+                    </div>
+                  }
+                </div>
+              }
+            }
+          </section>
+        }
+      </div>
     }
-  </div>
+  }
 </div>

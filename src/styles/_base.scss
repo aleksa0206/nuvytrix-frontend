@@ -17,6 +17,7 @@ body {
   font-size: var(--text-md);
   line-height: var(--leading);
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'tnum' 0;
 }
 
 h1,
@@ -27,7 +28,8 @@ p,
 dl,
 dd,
 ul,
-ol {
+ol,
+figure {
   margin: 0;
 }
 
@@ -38,22 +40,21 @@ ol {
 }
 
 h1 {
-  font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
-  letter-spacing: -0.01em;
-}
-
-h2 {
   font-size: var(--text-lg);
   font-weight: var(--weight-semibold);
 }
 
-h3 {
-  font-size: var(--text-sm);
+h2 {
+  font-size: var(--text-md);
   font-weight: var(--weight-semibold);
-  color: var(--color-text-secondary);
+}
+
+h3 {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-tertiary);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.07em;
 }
 
 a {
@@ -74,7 +75,7 @@ a {
 code,
 .mono {
   font-family: var(--font-mono);
-  font-size: 0.92em;
+  font-size: 0.93em;
   font-variant-numeric: tabular-nums;
 }
 
@@ -97,6 +98,10 @@ code,
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+::selection {
+  background: var(--color-accent-subtle);
 }
 
 @media (prefers-reduced-motion: reduce) {

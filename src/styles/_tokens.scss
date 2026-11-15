@@ -1,15 +1,17 @@
-// Design tokens. Dark is the default; the light theme only remaps colors.
+// Design tokens. Dark ("console") is the default; the light theme only remaps colors.
 :root {
   color-scheme: dark;
 
-  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'JetBrains Mono', Consolas, monospace;
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
 
+  --text-2xs: 0.6875rem; // 11px: micro labels
   --text-xs: 0.75rem;
   --text-sm: 0.8125rem;
   --text-md: 0.875rem;
   --text-lg: 1rem;
   --text-xl: 1.25rem;
+  --text-figure: 1.625rem;
   --leading: 1.45;
   --weight-medium: 500;
   --weight-semibold: 600;
@@ -23,60 +25,77 @@
   --space-8: 32px;
   --space-10: 40px;
 
-  --radius-sm: 3px;
+  --radius-sm: 2px;
   --radius: 4px;
-  --row-height: 32px;
+  --row-height: 34px;
   --control-height: 30px;
-  --sidebar-width: 220px;
+  --topbar-height: 48px;
+  --sidebar-width: 232px;
 
-  --color-bg: #0e1013;
-  --color-surface: #14171b;
-  --color-surface-raised: #1a1e23;
-  --color-surface-hover: #1f242a;
-  --color-border: #262b32;
-  --color-border-strong: #343a43;
-  --color-text: #e3e6ea;
-  --color-text-secondary: #9aa2ad;
-  --color-text-tertiary: #6b737e;
+  // Surfaces step up in lightness: page < panel < raised < hover.
+  --color-bg: #0a0c0f;
+  --color-surface: #11151a;
+  --color-surface-raised: #171c22;
+  --color-surface-hover: #1c222a;
+  --color-surface-sunken: #0d1014;
+  --color-border: #1f262e;
+  --color-border-strong: #2c343e;
+  --color-text: #dde3ea;
+  --color-text-secondary: #95a0ac;
+  --color-text-tertiary: #636d79;
 
-  --color-accent: #5b9dff;
-  --color-accent-hover: #7ab0ff;
-  --color-accent-subtle: rgb(91 157 255 / 12%);
-  --color-on-accent: #0b1220;
+  // Indigo is only for interaction: links, selection, focus, primary actions.
+  --color-accent: #7c87ff;
+  --color-accent-hover: #9aa2ff;
+  --color-accent-subtle: rgb(124 135 255 / 13%);
+  --color-on-accent: #0b0e1f;
 
-  // Status colors are reserved for states, never for decoration.
-  --color-ok: #3fb68b;
-  --color-ok-subtle: rgb(63 182 139 / 12%);
-  --color-warning: #d9a440;
-  --color-warning-subtle: rgb(217 164 64 / 13%);
-  --color-error: #e5615e;
-  --color-error-subtle: rgb(229 97 94 / 13%);
-  --color-unknown: #7c8591;
-  --color-unknown-subtle: rgb(124 133 145 / 14%);
+  // Status colors are reserved for states and always paired with a label.
+  --color-ok: #34c38f;
+  --color-ok-subtle: rgb(52 195 143 / 12%);
+  --color-warning: #e3a83f;
+  --color-warning-subtle: rgb(227 168 63 / 13%);
+  --color-error: #f0605d;
+  --color-error-subtle: rgb(240 96 93 / 13%);
+  --color-info: #4ea8de;
+  --color-info-subtle: rgb(78 168 222 / 12%);
+  --color-unknown: #6f7985;
+  --color-unknown-subtle: rgb(111 121 133 / 15%);
 
-  --focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent);
+  // Chart series.
+  --chart-line: #7c87ff;
+  --chart-band: rgb(124 135 255 / 16%);
+  --chart-grid: #1c232b;
+
+  --focus-ring: 0 0 0 1px var(--color-bg), 0 0 0 3px var(--color-accent);
 }
 
 :root[data-theme='light'] {
   color-scheme: light;
 
-  --color-bg: #f6f7f9;
+  --color-bg: #eef0f3;
   --color-surface: #ffffff;
   --color-surface-raised: #ffffff;
-  --color-surface-hover: #f1f3f5;
-  --color-border: #e1e4e8;
-  --color-border-strong: #cdd2d8;
-  --color-text: #15191e;
-  --color-text-secondary: #555e69;
-  --color-text-tertiary: #808893;
+  --color-surface-hover: #f2f4f7;
+  --color-surface-sunken: #f6f7f9;
+  --color-border: #dfe3e8;
+  --color-border-strong: #c9d0d8;
+  --color-text: #141a21;
+  --color-text-secondary: #4f5965;
+  --color-text-tertiary: #7d8692;
 
-  --color-accent: #1f6feb;
-  --color-accent-hover: #1a5fd0;
-  --color-accent-subtle: rgb(31 111 235 / 9%);
+  --color-accent: #4c56d8;
+  --color-accent-hover: #3d47c4;
+  --color-accent-subtle: rgb(76 86 216 / 9%);
   --color-on-accent: #ffffff;
 
-  --color-ok: #1a8a62;
-  --color-warning: #a8740c;
-  --color-error: #c93c39;
-  --color-unknown: #6b737e;
+  --color-ok: #138a5f;
+  --color-warning: #a66f00;
+  --color-error: #cc3431;
+  --color-info: #1f73b0;
+  --color-unknown: #6b7480;
+
+  --chart-line: #4c56d8;
+  --chart-band: rgb(76 86 216 / 12%);
+  --chart-grid: #e8ebef;
 }

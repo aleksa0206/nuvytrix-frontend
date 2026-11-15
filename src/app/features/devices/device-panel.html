@@ -1,0 +1,101 @@
+<aside class="panel" aria-label="Device details">
+  <header class="panel__header">
+    <h2>Device</h2>
+    <button type="button" class="btn btn--ghost btn--sm" (click)="closed.emit()">Close</button>
+  </header>
+
+  @if (device.error(); as error) {
+    <app-load-error [error]="error" (retry)="device.reload()" />
+  }
+  @if (!device.hasValue() && device.isLoading()) {
+    <app-loading />
+  }
+
+  @if (device.hasValue()) {
+    @let d = device.value();
+    <div class="identity">
+      <span class="identity__icon"><app-icon [name]="iconFor(d.deviceType)" [size]="20" /></span>
+      <div class="identity__text">
+        <strong>{{ d.customName ?? d.hostname ?? 'Unnamed device' }}</strong>
+        <span class="mono">{{ d.ipAddress }}</span>
+      </div>
+      <app-state-badge [state]="d.status" />
+    </div>
+
+    <dl class="kv facts">
+      <dt>MAC</dt>
+      <dd class="mono">{{ d.macAddress ?? 'Not available' }}</dd>
+      <dt>Vendor</dt>
+      <dd>{{ d.vendor ?? 'Unknown' }}</dd>
+      <dt>Hostname</dt>
+      <dd>{{ d.hostname ?? 'Not resolved' }}</dd>
+      <dt>Last seen</dt>
+      <dd>
+        {{ d.lastSeenAt | relative }}
+        <span class="text-tertiary mono">{{ d.lastSeenAt | dateTime }}</span>
+      </dd>
+      <dt>First seen</dt>
+      <dd>{{ d.firstSeenAt | dateTime }}</dd>
+    </dl>
+    @if (!d.macAddress) {
+      <p class="hint">
+        nmap reports no MAC for the scanning host itself or for hosts outside the local segment.
+      </p>
+    }
+
+    <form class="edit" [formGroup]="form" (ngSubmit)="save()">
+      <h3>Labels</h3>
+      <div class="field">
+        <label for="dp-name">Name</label>
+        <input
+          id="dp-name"
+          class="input"
+          formControlName="customName"
+          maxlength="100"
+          [placeholder]="d.hostname ?? ''"
+        />
+      </div>
+      <div class="field">
+        <label for="dp-type">Type</label>
+        <select id="dp-type" class="select" formControlName="deviceType">
+          <option value="">Not set</option>
+          @for (type of deviceTypes; track type) {
+            <option [value]="type">{{ typeLabels[type] }}</option>
+          }
+        </select>
+      </div>
+      <div class="field">
+        <label for="dp-notes">Notes</label>
+        <textarea id="dp-notes" class="textarea" rows="3" formControlName="notes"></textarea>
+      </div>
+      @if (saveError()) {
+        <p class="notice notice--error" role="alert">{{ saveError() }}</p>
+      }
+      <div class="edit__actions">
+        <button
+          type="submit"
+          class="btn btn--primary btn--sm"
+          [disabled]="saving() || form.pristine"
+        >
+          Save
+        </button>
+        @if (savedAt() && form.pristine) {
+          <span class="saved" role="status">Saved</span>
+        }
+        <a class="full-link" [routerLink]="['/devices', d.id]">Full page</a>
+      </div>
+    </form>
+
+    <div class="history">
+      <h3>Seen in scans</h3>
+      <ul>
+        @for (observation of d.observations.slice(0, 8); track observation.scanId) {
+          <li>
+            <span class="mono">{{ observation.observedAt | dateTime }}</span>
+            <span class="mono text-secondary">{{ observation.ipAddress }}</span>
+          </li>
+        }
+      </ul>
+    </div>
+  }
+</aside>

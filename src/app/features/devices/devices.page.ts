@@ -1,15 +1,22 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { filter, interval, switchMap, takeWhile } from 'rxjs';
 import { toApiError } from '../../core/api/api-error';
-import type { DeviceQuery, DiscoveryScan } from '../../core/models/device.model';
+import {
+  DEVICE_TYPE_LABELS,
+  type DeviceQuery,
+  type DiscoveryScan,
+} from '../../core/models/device.model';
 import { DevicesService } from '../../core/services/devices.service';
+import { SystemService } from '../../core/services/system.service';
 import { EmptyState, LoadError, Loading } from '../../shared/ui/feedback';
+import { Icon, deviceIcon } from '../../shared/ui/icon';
 import { PageHeader } from '../../shared/ui/page-header';
 import { Pagination } from '../../shared/ui/pagination';
 import { StateBadge } from '../../shared/ui/state-badge';
 import { DateTimePipe, RelativePipe } from '../../shared/util/format.pipes';
+import { DevicePanel } from './device-panel';
 
 const SCAN_POLL_MS = 2000;
 type StatusFilter = DeviceQuery['status'];
@@ -18,13 +25,14 @@ type StatusFilter = DeviceQuery['status'];
   selector: 'app-devices-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    RouterLink,
     PageHeader,
     StateBadge,
     LoadError,
     Loading,
     EmptyState,
     Pagination,
+    Icon,
+    DevicePanel,
     RelativePipe,
     DateTimePipe,
   ],
@@ -35,39 +43,39 @@ export class DevicesPage {
   private readonly devices = inject(DevicesService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly params = inject(ActivatedRoute).snapshot.queryParamMap;
 
-  protected readonly statusFilters: { value: StatusFilter; label: string }[] = [
-    { value: undefined, label: 'All' },
-    { value: 'online', label: 'Online' },
-    { value: 'offline', label: 'Offline' },
-    { value: 'new', label: 'New (24 h)' },
-  ];
-
+  protected readonly counts = inject(SystemService).overviewResource();
   protected readonly query = signal<DeviceQuery>({
     page: 1,
     pageSize: 50,
     sort: 'ip_address',
     order: 'asc',
-    status: parseStatus(inject(ActivatedRoute).snapshot.queryParamMap.get('status')),
+    status: parseStatus(this.params.get('status')),
+    search: this.params.get('search') ?? undefined,
   });
   protected readonly list = this.devices.listResource(this.query);
   protected readonly scans = this.devices.scansResource();
+  protected readonly selectedId = signal<number | null>(Number(this.params.get('device')) || null);
   protected readonly activeScan = signal<DiscoveryScan | null>(null);
   protected readonly scanError = signal<string | null>(null);
+  protected readonly showScans = signal(false);
+  protected readonly iconFor = deviceIcon;
+  protected readonly typeLabels = DEVICE_TYPE_LABELS;
 
   private searchTimer: ReturnType<typeof setTimeout> | undefined;
 
   protected setStatus(status: StatusFilter) {
     this.query.update((q) => ({ ...q, status, page: 1 }));
-    this.router.navigate([], { queryParams: { status: status ?? null }, replaceUrl: true });
+    this.syncUrl();
   }
 
   protected onSearch(value: string) {
     clearTimeout(this.searchTimer);
-    this.searchTimer = setTimeout(
-      () => this.query.update((q) => ({ ...q, search: value.trim() || undefined, page: 1 })),
-      250,
-    );
+    this.searchTimer = setTimeout(() => {
+      this.query.update((q) => ({ ...q, search: value.trim() || undefined, page: 1 }));
+      this.syncUrl();
+    }, 250);
   }
 
   protected sortBy(sort: DeviceQuery['sort']) {
@@ -88,8 +96,21 @@ export class DevicesPage {
     this.query.update((q) => ({ ...q, page }));
   }
 
-  protected open(id: number) {
-    this.router.navigate(['/devices', id]);
+  protected select(id: number | null) {
+    this.selectedId.set(this.selectedId() === id ? null : id);
+    this.syncUrl();
+  }
+
+  private syncUrl() {
+    const q = this.query();
+    this.router.navigate([], {
+      queryParams: {
+        status: q.status ?? null,
+        search: q.search ?? null,
+        device: this.selectedId(),
+      },
+      replaceUrl: true,
+    });
   }
 
   protected startScan() {
@@ -113,6 +134,7 @@ export class DevicesPage {
           if (finished.status === 'failed') this.scanError.set(`Scan failed: ${finished.error}`);
           this.list.reload();
           this.scans.reload();
+          this.counts.reload();
         },
         error: (err: unknown) => {
           this.activeScan.set(null);

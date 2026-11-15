@@ -1,18 +1,58 @@
+.layout {
+  display: grid;
+  gap: var(--space-4);
+  align-items: start;
+
+  &.has-panel {
+    grid-template-columns: minmax(0, 1fr) 360px;
+
+    @media (width < 1200px) {
+      grid-template-columns: 1fr;
+    }
+
+    .hide-narrow {
+      display: none;
+    }
+  }
+}
+
+.toolbar-row {
+  flex-wrap: wrap;
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+
 .search {
   width: min(280px, 100%);
 }
 
-.panel__header {
-  flex-wrap: wrap;
+.col-status {
+  width: 28px;
+  padding-right: 0 !important;
 }
 
-.tag {
-  margin-left: var(--space-2);
-  padding: 0 5px;
-  border: 1px solid var(--color-accent);
-  border-radius: var(--radius-sm);
-  color: var(--color-accent);
-  font-size: var(--text-xs);
+.device-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  app-icon {
+    color: var(--color-text-tertiary);
+  }
+
+  .chip {
+    margin-left: 6px;
+    height: 16px;
+    vertical-align: 1px;
+  }
+}
+
+tr.is-offline td {
+  color: var(--color-text-secondary);
+}
+
+.type {
+  text-transform: capitalize;
 }
 
 .error-cell {

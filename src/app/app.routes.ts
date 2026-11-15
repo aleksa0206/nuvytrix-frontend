@@ -22,6 +22,12 @@ export const routes: Routes = [
           import('./features/overview/overview.page').then((m) => m.OverviewPage),
       },
       {
+        path: 'topology',
+        title: 'Topology · Nuvytrix',
+        loadComponent: () =>
+          import('./features/topology/topology.page').then((m) => m.TopologyPage),
+      },
+      {
         path: 'devices',
         title: 'Devices · Nuvytrix',
         loadComponent: () => import('./features/devices/devices.page').then((m) => m.DevicesPage),
