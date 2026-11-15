@@ -1,0 +1,462 @@
+<div class="page">
+  <app-page-header
+    title="Router"
+    description="Huawei OptiXstar read by the server through the router's web interface and UPnP. Read only: nothing here changes the router."
+  >
+    @if (status.hasValue() && status.value().configured) {
+      @let s = status.value();
+      @if (s.configured) {
+        <span class="text-tertiary small"
+          >Read {{ s.capturedAt ? (s.capturedAt | relative) : 'not yet' }}</span
+        >
+      }
+      <button type="button" class="btn" [disabled]="refreshing()" (click)="refresh()">
+        {{ refreshing() ? 'Reading…' : 'Read now' }}
+      </button>
+    }
+  </app-page-header>
+
+  @if (refreshError()) {
+    <p class="notice notice--error" role="alert">{{ refreshError() }}</p>
+  }
+  @if (status.isLoading() && !status.hasValue()) {
+    <app-loading />
+  }
+  @if (status.error(); as error) {
+    <app-load-error [error]="error" (retry)="status.reload()" />
+  }
+
+  @if (status.hasValue()) {
+    @let s = status.value();
+    @if (!s.configured) {
+      <section class="panel">
+        <app-empty-state
+          title="Router access is not configured"
+          description="Set ROUTER_USERNAME and ROUTER_PASSWORD (the router's web account) in the API environment. Nuvytrix only reads from the router."
+        />
+      </section>
+    } @else if (!s.capturedAt) {
+      <section class="panel">
+        <app-empty-state title="Reading the router for the first time…" />
+      </section>
+    } @else {
+      @if (s.errors.length > 0) {
+        <p class="notice notice--warning">
+          Some sections could not be read:
+          @for (e of s.errors; track e.section; let last = $last) {
+            <strong>{{ e.section }}</strong> ({{ e.message }}){{ last ? '' : ', ' }}
+          }
+        </p>
+      }
+
+      <div class="segmented tabs" role="tablist" aria-label="Router sections">
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-pressed]="tab() === 'overview'"
+          (click)="tab.set('overview')"
+        >
+          Status
+        </button>
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-pressed]="tab() === 'clients'"
+          (click)="tab.set('clients')"
+        >
+          Clients <span class="count">{{ s.devicesOnline }}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-pressed]="tab() === 'firewall'"
+          (click)="tab.set('firewall')"
+        >
+          Firewall &amp; UPnP
+        </button>
+      </div>
+
+      @if (tab() === 'overview') {
+        <section class="health" aria-label="Router health">
+          <div class="figure cell">
+            <span class="figure__label">Uptime</span>
+            <span class="figure__value small-value">{{ uptime(s.system?.uptimeSeconds) }}</span>
+            <span class="figure__note"
+              >{{ s.system?.model }} · {{ s.system?.softwareVersion }}</span
+            >
+          </div>
+          <div class="figure cell">
+            <span class="figure__label">CPU / memory</span>
+            <span class="figure__value"
+              >{{ s.system?.cpuPercent ?? '—' }}<small>%</small> /
+              {{ s.system?.memoryPercent ?? '—' }}<small>%</small></span
+            >
+            <span class="figure__note">ONT state {{ s.system?.ontRegistrationState ?? '—' }}</span>
+          </div>
+          <div class="figure cell">
+            <span class="figure__label">Optical Rx</span>
+            <span class="figure__value">{{ s.optical?.rxPowerDbm ?? '—' }}<small>dBm</small></span>
+            <span class="figure__note"
+              >Tx {{ s.optical?.txPowerDbm ?? '—' }} dBm · {{ s.optical?.temperatureC ?? '—' }} °C ·
+              {{ s.optical?.voltageMv ?? '—' }} mV</span
+            >
+          </div>
+          <div class="figure cell">
+            <span class="figure__label">Internet</span>
+            <span class="figure__value small-value">
+              <app-state-badge
+                [state]="s.wan?.connected ? 'up' : 'down'"
+                [label]="s.wan?.connectionStatus ?? 'Unknown'"
+              />
+            </span>
+            <span class="figure__note mono"
+              >{{ s.wan?.externalIp ?? '—' }} · NAT {{ s.wan?.natEnabled ? 'on' : 'off' }}</span
+            >
+          </div>
+          <div class="figure cell">
+            <span class="figure__label">Devices</span>
+            <span class="figure__value"
+              >{{ s.devicesOnline }}<small>/{{ s.devicesKnown }}</small></span
+            >
+            <span class="figure__note">{{ s.wifiClients }} on Wi-Fi</span>
+          </div>
+        </section>
+
+        <div class="charts">
+          <section class="panel">
+            <header class="panel__header">
+              <h2>Optical receive power</h2>
+              <span class="panel__meta">shown as attenuation (−dBm); higher is weaker</span>
+            </header>
+            <div class="panel__body">
+              @if (rxPoints().length > 1) {
+                <app-line-chart
+                  [points]="rxPoints()"
+                  [bucketMinutes]="(s.pollSeconds / 60) * 1.5"
+                  unit=" dB"
+                  [height]="140"
+                  label="Optical receive power"
+                />
+              } @else {
+                <app-empty-state
+                  title="Collecting samples"
+                  description="A point is stored on every router read."
+                />
+              }
+            </div>
+          </section>
+          <section class="panel">
+            <header class="panel__header">
+              <h2>Internet download</h2>
+              <span class="panel__meta">Mbit/s, average between reads</span>
+            </header>
+            <div class="panel__body">
+              @if (downloadPoints().length > 2) {
+                <app-line-chart
+                  [points]="downloadPoints()"
+                  [bucketMinutes]="(s.pollSeconds / 60) * 1.5"
+                  unit=" Mb"
+                  [height]="140"
+                  label="Internet download rate"
+                />
+              } @else {
+                <app-empty-state title="Collecting samples" />
+              }
+            </div>
+          </section>
+          <section class="panel">
+            <header class="panel__header">
+              <h2>Router CPU</h2>
+              <span class="panel__meta">%</span>
+            </header>
+            <div class="panel__body">
+              @if (cpuPoints().length > 1) {
+                <app-line-chart
+                  [points]="cpuPoints()"
+                  [bucketMinutes]="(s.pollSeconds / 60) * 1.5"
+                  unit=" %"
+                  [height]="140"
+                  label="Router CPU use"
+                />
+              } @else {
+                <app-empty-state title="Collecting samples" />
+              }
+            </div>
+          </section>
+        </div>
+
+        <div class="tables">
+          <section class="panel">
+            <header class="panel__header"><h2>LAN ports</h2></header>
+            <table class="table table--compact">
+              <thead>
+                <tr>
+                  <th>Port</th>
+                  <th>Link</th>
+                  <th class="align-right">Sent</th>
+                  <th class="align-right">Received</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (port of s.lanPorts ?? []; track port.port) {
+                  <tr>
+                    <td>LAN {{ port.port }}</td>
+                    <td>
+                      <app-state-badge
+                        [state]="port.linkUp ? 'up' : 'disabled'"
+                        [label]="
+                          port.linkUp
+                            ? port.speedMbps + ' Mbit/s ' + (port.fullDuplex ? 'full' : 'half')
+                            : 'No link'
+                        "
+                      />
+                    </td>
+                    <td class="align-right mono">
+                      {{ port.linkUp || port.bytesSent ? formatBytes(port.bytesSent) : '—' }}
+                    </td>
+                    <td class="align-right mono">
+                      {{
+                        port.linkUp || port.bytesReceived ? formatBytes(port.bytesReceived) : '—'
+                      }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </section>
+          <section class="panel">
+            <header class="panel__header"><h2>Wi-Fi networks</h2></header>
+            <table class="table table--compact">
+              <thead>
+                <tr>
+                  <th>SSID</th>
+                  <th>Band</th>
+                  <th>Channel</th>
+                  <th class="align-right">Sent</th>
+                  <th class="align-right">Received</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (w of s.wlan ?? []; track w.instance) {
+                  <tr>
+                    <td>{{ w.ssid }}</td>
+                    <td>
+                      {{ w.band }} <span class="text-tertiary">{{ w.standard }}</span>
+                    </td>
+                    <td class="mono">{{ w.channel ?? '—' }}</td>
+                    <td class="align-right mono">
+                      {{ w.bytesSent !== null ? formatBytes(w.bytesSent) : '—' }}
+                    </td>
+                    <td class="align-right mono">
+                      {{ w.bytesReceived !== null ? formatBytes(w.bytesReceived) : '—' }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </section>
+        </div>
+      }
+
+      @if (tab() === 'clients') {
+        <section class="panel">
+          <header class="panel__header">
+            <h2>Devices known to the router</h2>
+            <span class="panel__meta">names from DHCP; signal for Wi-Fi clients</span>
+          </header>
+          @if (clients.hasValue()) {
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th class="col-status"><span class="visually-hidden">Status</span></th>
+                    <th>Device</th>
+                    <th>IP / MAC</th>
+                    <th>Connection</th>
+                    <th>Signal</th>
+                    <th class="align-right">Link rate</th>
+                    <th>Online for</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (c of sortedClients(); track c.macAddress) {
+                    <tr [class.is-offline]="!c.online">
+                      <td class="col-status">
+                        <app-state-badge
+                          [state]="c.online ? 'online' : 'offline'"
+                          [compact]="true"
+                        />
+                      </td>
+                      <td>
+                        <div class="cell-stack">
+                          @if (c.deviceId) {
+                            <a [routerLink]="['/devices']" [queryParams]="{ device: c.deviceId }">{{
+                              c.customName ?? c.hostName ?? 'Unnamed'
+                            }}</a>
+                          } @else {
+                            <span>{{ c.hostName ?? 'Unnamed' }}</span>
+                          }
+                          <small>{{ c.dhcpVendorClass ?? c.addressSource ?? '' }}</small>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="cell-stack">
+                          <span class="mono">{{ c.ipAddress ?? '—' }}</span>
+                          <small class="mono">{{ c.macAddress }}</small>
+                        </div>
+                      </td>
+                      <td>{{ portLabel(c.port) }}</td>
+                      <td>
+                        @if (c.wifi) {
+                          <div class="cell-stack">
+                            <app-state-badge
+                              [state]="signalState(c.wifi.rssiDbm)"
+                              [label]="signalLabel(c.wifi.rssiDbm)"
+                            />
+                            <small
+                              >SNR {{ c.wifi.snrDb ?? '—' }} dB · {{ c.wifi.standard }}
+                              {{ c.wifi.streams }}</small
+                            >
+                          </div>
+                        } @else {
+                          <span class="text-tertiary">{{
+                            c.connection === 'ethernet' ? 'wired' : '—'
+                          }}</span>
+                        }
+                      </td>
+                      <td class="align-right mono">
+                        {{ c.wifi ? c.wifi.rxRateMbps + ' / ' + c.wifi.txRateMbps + ' Mb' : '—' }}
+                      </td>
+                      <td class="mono text-secondary">
+                        {{ c.online ? (c.onlineDuration ?? '—') : '—' }}
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else if (clients.error(); as error) {
+            <app-load-error [error]="error" (retry)="clients.reload()" />
+          } @else {
+            <app-loading />
+          }
+        </section>
+      }
+
+      @if (tab() === 'firewall') {
+        <section class="panel">
+          <header class="panel__header">
+            <h2>IPv4 filtering on the router</h2>
+            <span class="panel__meta"
+              >as configured on the router; edit rules on the router or plan them under Rules</span
+            >
+          </header>
+          @if (s.ipFilter; as f) {
+            <div class="panel__body filter-state">
+              <app-state-badge
+                [state]="f.enabled ? 'operational' : 'disabled'"
+                [label]="f.enabled ? 'Filtering enabled' : 'Filtering disabled'"
+              />
+              <span
+                >Mode <strong>{{ f.mode }}</strong></span
+              >
+              <span
+                >Firewall level <strong>{{ f.firewallLevel ?? '—' }}</strong></span
+              >
+            </div>
+            @if (f.rules.length === 0) {
+              <app-empty-state title="No IPv4 filter rules on the router" />
+            } @else {
+              <div class="table-wrap">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Protocol</th>
+                      <th>Direction</th>
+                      <th>LAN side</th>
+                      <th>WAN side</th>
+                      <th>Ports</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (r of f.rules; track r.domain) {
+                      <tr>
+                        <td>{{ r.name || '—' }}</td>
+                        <td>
+                          <span class="chip">{{ r.protocol }}</span>
+                        </td>
+                        <td>{{ r.direction }}</td>
+                        <td class="mono">
+                          {{ r.sourceIpStart || 'any'
+                          }}{{ r.sourceIpEnd ? '–' + r.sourceIpEnd : '' }}
+                        </td>
+                        <td class="mono">
+                          {{ r.destIpStart || 'any' }}{{ r.destIpEnd ? '–' + r.destIpEnd : '' }}
+                        </td>
+                        <td class="mono">
+                          {{
+                            r.lanTcpPorts ||
+                              r.lanUdpPorts ||
+                              r.wanTcpPorts ||
+                              r.wanUdpPorts ||
+                              'all'
+                          }}
+                        </td>
+                        <td>{{ r.action || (f.mode === 'blacklist' ? 'deny' : 'allow') }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          } @else {
+            <app-empty-state title="Filter state could not be read" />
+          }
+        </section>
+
+        <section class="panel">
+          <header class="panel__header">
+            <h2>UPnP port mappings</h2>
+            <span class="panel__meta">ports opened automatically by applications on the LAN</span>
+          </header>
+          @if (upnp.hasValue()) {
+            @if (upnp.value().length === 0) {
+              <app-empty-state title="No ports opened through UPnP" />
+            } @else {
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Application</th>
+                    <th>External</th>
+                    <th>Internal</th>
+                    <th>Protocol</th>
+                    <th>Lease</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (m of upnp.value(); track m.externalPort + m.protocol) {
+                    <tr>
+                      <td>{{ m.description || '—' }}</td>
+                      <td class="mono">{{ m.externalPort }}</td>
+                      <td class="mono">{{ m.internalClient }}:{{ m.internalPort }}</td>
+                      <td>
+                        <span class="chip">{{ m.protocol }}</span>
+                      </td>
+                      <td class="text-secondary">
+                        {{ m.leaseSeconds === 0 ? 'permanent' : formatDuration(m.leaseSeconds) }}
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+          } @else if (upnp.error(); as error) {
+            <app-load-error [error]="error" (retry)="upnp.reload()" />
+          }
+        </section>
+      }
+    }
+  }
+</div>

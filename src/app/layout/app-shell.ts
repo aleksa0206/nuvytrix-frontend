@@ -45,6 +45,7 @@ export class AppShell {
       label: 'Network',
       items: [
         { path: '/overview', label: 'Overview', icon: 'overview' },
+        { path: '/router', label: 'Router', icon: 'router' },
         { path: '/topology', label: 'Topology', icon: 'topology' },
         { path: '/devices', label: 'Devices', icon: 'devices' },
         { path: '/monitoring', label: 'Monitoring', icon: 'monitoring' },
