@@ -1,7 +1,7 @@
 <div class="page">
   <app-page-header
     title="Router"
-    description="Huawei OptiXstar, read and managed by the server through the router's web interface and UPnP. Changes are made only from the DHCP, Firewall &amp; UPnP, MAC filter and Port forwarding &amp; DMZ tabs, after confirmation."
+    description="Huawei OptiXstar, read and managed by the server through the router's web interface and UPnP. Changes are made only from the Wi-Fi, DHCP, Firewall &amp; UPnP, MAC filter and Port forwarding &amp; DMZ tabs, after confirmation."
   >
     @if (status.hasValue() && status.value().configured) {
       @let s = status.value();
@@ -65,6 +65,14 @@
           (click)="tab.set('clients')"
         >
           Clients <span class="count">{{ s.devicesOnline }}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-pressed]="tab() === 'wifi'"
+          (click)="tab.set('wifi')"
+        >
+          Wi-Fi
         </button>
         <button
           type="button"
@@ -365,6 +373,10 @@
             <app-loading />
           }
         </section>
+      }
+
+      @if (tab() === 'wifi') {
+        <app-router-wifi />
       }
 
       @if (tab() === 'dhcp') {

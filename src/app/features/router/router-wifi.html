@@ -1,0 +1,180 @@
+<section class="panel">
+  <header class="panel__header">
+    <h2>Wi-Fi networks on the router</h2>
+    <span class="panel__meta">read from the router now; passwords are never shown</span>
+  </header>
+
+  @if (wifi.isLoading() && !wifi.hasValue()) {
+    <app-loading />
+  }
+  @if (wifi.error(); as error) {
+    <app-load-error [error]="error" (retry)="wifi.reload()" />
+  }
+
+  @if (wifi.hasValue()) {
+    @let w = wifi.value();
+    @if (writable()) {
+      <div class="panel__body filter-state">
+        <span class="spacer"></span>
+        <button
+          type="button"
+          class="btn btn--primary"
+          [disabled]="saving()"
+          (click)="startCreate()"
+        >
+          New network
+        </button>
+      </div>
+    } @else {
+      <p class="panel__body notice notice--info">
+        Changing router settings is turned off on the server (ROUTER_WRITES_ENABLED). Wi-Fi networks
+        are shown read-only.
+      </p>
+    }
+    @if (actionError()) {
+      <p class="panel__body notice notice--error" role="alert">{{ actionError() }}</p>
+    }
+
+    @if (editing(); as e) {
+      <form class="panel__body stack" [formGroup]="form" (ngSubmit)="save()" novalidate>
+        <h3>{{ e === 'new' ? 'New Wi-Fi network' : 'Edit ' + e.ssid }}</h3>
+        <div class="form-grid">
+          @if (e === 'new') {
+            <div class="field">
+              <label for="wifi-band">Band</label>
+              <select id="wifi-band" class="select" formControlName="band">
+                <option value="2.4 GHz">2.4 GHz</option>
+                <option value="5 GHz">5 GHz</option>
+              </select>
+            </div>
+          }
+          <div class="field">
+            <label for="wifi-ssid">Network name</label>
+            <input id="wifi-ssid" class="input" formControlName="ssid" maxlength="32" />
+            @if (fieldError('ssid'); as message) {
+              <span class="field__error">{{ message }}</span>
+            } @else if (form.controls.ssid.touched && form.controls.ssid.invalid) {
+              <span class="field__error">1–32 letters, digits or common symbols</span>
+            }
+          </div>
+          <div class="field">
+            <label for="wifi-security">Security</label>
+            <select id="wifi-security" class="select" formControlName="security">
+              <option value="wpa2">WPA2 (recommended)</option>
+              <option value="wpa-wpa2">WPA/WPA2 (for old devices)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="wifi-password">{{
+              passwordRequired() ? 'Password' : 'New password (leave empty to keep)'
+            }}</label>
+            <input
+              id="wifi-password"
+              class="input mono"
+              [type]="showPassword() ? 'text' : 'password'"
+              formControlName="password"
+              maxlength="63"
+              autocomplete="new-password"
+            />
+            <label class="checkbox field__hint">
+              <input
+                type="checkbox"
+                [checked]="showPassword()"
+                (change)="showPassword.set(!showPassword())"
+              />
+              Show password
+            </label>
+            @if (fieldError('password'); as message) {
+              <span class="field__error">{{ message }}</span>
+            } @else if (form.controls.password.touched && form.controls.password.invalid) {
+              <span class="field__error">8–63 letters, digits or common symbols</span>
+            }
+          </div>
+          <label class="field checkbox">
+            <input type="checkbox" formControlName="enabled" />
+            On
+          </label>
+          <label class="field checkbox">
+            <input type="checkbox" formControlName="visible" />
+            Broadcast the network name
+          </label>
+        </div>
+        @if (formError()) {
+          <p class="notice notice--error" role="alert">{{ formError() }}</p>
+        }
+        <div class="toolbar">
+          <button type="submit" class="btn btn--primary" [disabled]="saving()">
+            {{ saving() ? 'Saving on the router…' : 'Save on the router' }}
+          </button>
+          <button type="button" class="btn" [disabled]="saving()" (click)="editing.set(null)">
+            Cancel
+          </button>
+        </div>
+      </form>
+    }
+
+    @if (w.networks.length === 0) {
+      <app-empty-state title="No Wi-Fi networks on the router" />
+    } @else {
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Network</th>
+              <th>Band</th>
+              <th>State</th>
+              <th>Security</th>
+              <th>Name broadcast</th>
+              @if (writable()) {
+                <th><span class="visually-hidden">Actions</span></th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (n of w.networks; track n.domain) {
+              <tr>
+                <td>
+                  {{ n.ssid }}
+                  @if (mainInstances().has(n.instance)) {
+                    <span class="chip">main</span>
+                  }
+                </td>
+                <td>{{ n.band }}</td>
+                <td>
+                  <app-state-badge
+                    [state]="n.enabled ? 'operational' : 'disabled'"
+                    [label]="n.enabled ? 'On' : 'Off'"
+                  />
+                </td>
+                <td>{{ labels[n.security] }}</td>
+                <td>{{ n.visible ? 'yes' : 'hidden' }}</td>
+                @if (writable()) {
+                  <td class="row-actions">
+                    <button
+                      type="button"
+                      class="btn btn--sm"
+                      [disabled]="saving()"
+                      (click)="startEdit(n)"
+                    >
+                      Edit
+                    </button>
+                    @if (!mainInstances().has(n.instance)) {
+                      <button
+                        type="button"
+                        class="btn btn--sm btn--danger"
+                        [disabled]="saving()"
+                        (click)="remove(n)"
+                      >
+                        Delete
+                      </button>
+                    }
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</section>
