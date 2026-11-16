@@ -6,6 +6,7 @@ import { RouterService } from '../../core/services/router.service';
 import { RouterDhcp } from './router-dhcp';
 import { RouterFirewall } from './router-firewall';
 import { RouterMacFilter } from './router-mac-filter';
+import { RouterForwarding } from './router-forwarding';
 import { RouterPortMapping } from './router-port-mapping';
 import { EmptyState, LoadError, Loading } from '../../shared/ui/feedback';
 import { LineChart } from '../../shared/ui/line-chart';
@@ -32,6 +33,7 @@ type Tab = 'overview' | 'clients' | 'dhcp' | 'firewall' | 'mac' | 'ports';
     RouterDhcp,
     RouterMacFilter,
     RouterPortMapping,
+    RouterForwarding,
   ],
   templateUrl: './router.page.html',
   styleUrl: './router.page.scss',

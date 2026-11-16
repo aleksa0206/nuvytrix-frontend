@@ -21,6 +21,11 @@ import type {
   PortMappingInput,
   PortMappingRule,
   RouterPortMappingState,
+  DmzState,
+  PortTriggerInput,
+  PortTriggerRule,
+  RouterDmzState,
+  RouterPortTriggerState,
   RouterStatus,
 } from '../models/router.model';
 import { apiUrl, toParams } from '../api/http';
@@ -141,6 +146,37 @@ export class RouterService {
 
   deletePortMapping(index: number) {
     return this.http.delete<PortMappingRule[]>(apiUrl(`/router/port-mappings/${index}`));
+  }
+
+  dmzResource() {
+    return httpResource<RouterDmzState>(() => apiUrl('/router/dmz'));
+  }
+
+  setDmz(input: { enabled: boolean; host: string }) {
+    return this.http.put<DmzState>(apiUrl('/router/dmz'), input);
+  }
+
+  deleteDmz() {
+    return this.http.delete<void>(apiUrl('/router/dmz'));
+  }
+
+  portTriggerResource() {
+    return httpResource<RouterPortTriggerState>(() => apiUrl('/router/port-triggers'));
+  }
+
+  addPortTrigger(input: PortTriggerInput) {
+    return this.http.post<{ trigger: PortTriggerRule }>(apiUrl('/router/port-triggers'), input);
+  }
+
+  updatePortTrigger(index: number, input: PortTriggerInput) {
+    return this.http.put<{ trigger: PortTriggerRule }>(
+      apiUrl(`/router/port-triggers/${index}`),
+      input,
+    );
+  }
+
+  deletePortTrigger(index: number) {
+    return this.http.delete<PortTriggerRule[]>(apiUrl(`/router/port-triggers/${index}`));
   }
 
   refresh() {

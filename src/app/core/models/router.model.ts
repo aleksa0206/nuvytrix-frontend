@@ -279,3 +279,38 @@ export interface PortMappingInput {
   remoteHostStart: string;
   remoteHostEnd: string;
 }
+
+export interface DmzState {
+  domain: string;
+  enabled: boolean;
+  host: string;
+}
+
+export interface RouterDmzState {
+  writesEnabled: boolean;
+  internetWan: string | null;
+  dmz: DmzState | null;
+}
+
+export interface PortTriggerRule {
+  /** TR-098 path; its last number is the index used by the API. */
+  domain: string;
+  enabled: boolean;
+  triggerProtocol: string;
+  triggerPortStart: number;
+  triggerPortEnd: number;
+  openProtocol: string;
+  openPortStart: number;
+  openPortEnd: number;
+}
+
+export type PortTriggerInput = Omit<PortTriggerRule, 'domain'> & {
+  triggerProtocol: 'TCP' | 'UDP' | 'TCP/UDP';
+  openProtocol: 'TCP' | 'UDP' | 'TCP/UDP';
+};
+
+export interface RouterPortTriggerState {
+  writesEnabled: boolean;
+  internetWan: string | null;
+  triggers: PortTriggerRule[];
+}

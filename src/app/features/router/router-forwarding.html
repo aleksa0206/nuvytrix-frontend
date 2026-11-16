@@ -1,0 +1,272 @@
+@if (actionError()) {
+  <p class="notice notice--error" role="alert">{{ actionError() }}</p>
+}
+
+<section class="panel">
+  <header class="panel__header">
+    <h2>DMZ host</h2>
+    <span class="panel__meta">receives all internet traffic that no port forward handles</span>
+  </header>
+  @if (dmz.isLoading() && !dmz.hasValue()) {
+    <app-loading />
+  }
+  @if (dmz.error(); as error) {
+    <app-load-error [error]="error" (retry)="dmz.reload()" />
+  }
+  @if (dmz.hasValue()) {
+    @let d = dmz.value();
+    <div class="panel__body filter-state">
+      @if (d.dmz; as current) {
+        <app-state-badge
+          [state]="current.enabled ? 'operational' : 'disabled'"
+          [label]="current.enabled ? 'DMZ on' : 'DMZ off'"
+        />
+        <span
+          >Host <strong class="mono">{{ current.host }}</strong>
+          @if (deviceName(current.host); as name) {
+            ({{ name }})
+          }
+        </span>
+      } @else {
+        <span>No DMZ host</span>
+      }
+      @if (dmzWritable()) {
+        <span class="spacer"></span>
+        @if (d.dmz) {
+          <button
+            type="button"
+            class="btn"
+            [class.btn--danger]="!d.dmz.enabled"
+            [disabled]="saving()"
+            (click)="toggleDmz()"
+          >
+            {{ d.dmz.enabled ? 'Turn off' : 'Turn on' }}
+          </button>
+          <button type="button" class="btn" [disabled]="saving()" (click)="startDmzEdit()">
+            Change
+          </button>
+          <button type="button" class="btn" [disabled]="saving()" (click)="removeDmz()">
+            Remove
+          </button>
+        } @else {
+          <button type="button" class="btn" [disabled]="saving()" (click)="startDmzEdit()">
+            Set DMZ host
+          </button>
+        }
+      }
+    </div>
+    @if (!d.writesEnabled) {
+      <p class="panel__body notice notice--info">
+        Changing router settings is turned off on the server (ROUTER_WRITES_ENABLED).
+      </p>
+    }
+    @if (editingDmz()) {
+      <form class="panel__body stack" [formGroup]="dmzForm" (ngSubmit)="saveDmz()" novalidate>
+        <div class="form-grid">
+          <div class="field">
+            <label for="dmz-host">Device address</label>
+            <input
+              id="dmz-host"
+              class="input mono"
+              formControlName="host"
+              list="fw-devices"
+              placeholder="192.168.100.50"
+            />
+            @if (fieldError('host'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <label class="field checkbox">
+            <input type="checkbox" formControlName="enabled" />
+            On
+          </label>
+        </div>
+        @if (formError()) {
+          <p class="notice notice--error" role="alert">{{ formError() }}</p>
+        }
+        <div class="toolbar">
+          <button type="submit" class="btn btn--primary" [disabled]="saving()">
+            {{ saving() ? 'Saving on the router…' : 'Save on the router' }}
+          </button>
+          <button type="button" class="btn" [disabled]="saving()" (click)="editingDmz.set(false)">
+            Cancel
+          </button>
+        </div>
+      </form>
+    }
+  }
+</section>
+
+<datalist id="fw-devices">
+  @for (c of devices(); track c.macAddress) {
+    <option [value]="c.ipAddress">{{ c.customName ?? c.hostName ?? c.macAddress }}</option>
+  }
+</datalist>
+
+<section class="panel">
+  <header class="panel__header">
+    <h2>Port triggers</h2>
+    <span class="panel__meta"
+      >outgoing traffic on a trigger port briefly opens ports back to that device</span
+    >
+  </header>
+  @if (triggers.isLoading() && !triggers.hasValue()) {
+    <app-loading />
+  }
+  @if (triggers.error(); as error) {
+    <app-load-error [error]="error" (retry)="triggers.reload()" />
+  }
+  @if (triggers.hasValue()) {
+    @let t = triggers.value();
+    @if (triggersWritable()) {
+      <div class="panel__body filter-state">
+        <span class="spacer"></span>
+        <button
+          type="button"
+          class="btn btn--primary"
+          [disabled]="saving()"
+          (click)="startCreate()"
+        >
+          New port trigger
+        </button>
+      </div>
+    }
+    @if (editing()) {
+      <form
+        class="panel__body stack"
+        [formGroup]="triggerForm"
+        (ngSubmit)="saveTrigger()"
+        novalidate
+      >
+        <h3>{{ editing() === 'new' ? 'New port trigger' : 'Edit port trigger' }}</h3>
+        <div class="form-grid">
+          <div class="field">
+            <label for="pt-tproto">Trigger protocol</label>
+            <select id="pt-tproto" class="select" formControlName="triggerProtocol">
+              @for (p of protocols; track p) {
+                <option [value]="p">{{ p }}</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label for="pt-tstart">Trigger port</label>
+            <input
+              id="pt-tstart"
+              class="input mono"
+              type="number"
+              formControlName="triggerPortStart"
+            />
+            @if (fieldError('triggerPortStart'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <div class="field">
+            <label for="pt-tend">Last trigger port (optional)</label>
+            <input id="pt-tend" class="input mono" type="number" formControlName="triggerPortEnd" />
+            @if (fieldError('triggerPortEnd'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <div class="field">
+            <label for="pt-oproto">Open protocol</label>
+            <select id="pt-oproto" class="select" formControlName="openProtocol">
+              @for (p of protocols; track p) {
+                <option [value]="p">{{ p }}</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label for="pt-ostart">Open port</label>
+            <input
+              id="pt-ostart"
+              class="input mono"
+              type="number"
+              formControlName="openPortStart"
+            />
+            @if (fieldError('openPortStart'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <div class="field">
+            <label for="pt-oend">Last open port (optional)</label>
+            <input id="pt-oend" class="input mono" type="number" formControlName="openPortEnd" />
+            @if (fieldError('openPortEnd'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <label class="field checkbox">
+            <input type="checkbox" formControlName="enabled" />
+            On
+          </label>
+        </div>
+        @if (formError()) {
+          <p class="notice notice--error" role="alert">{{ formError() }}</p>
+        }
+        <div class="toolbar">
+          <button type="submit" class="btn btn--primary" [disabled]="saving()">
+            {{ saving() ? 'Saving on the router…' : 'Save on the router' }}
+          </button>
+          <button type="button" class="btn" [disabled]="saving()" (click)="editing.set(null)">
+            Cancel
+          </button>
+        </div>
+      </form>
+    }
+    @if (t.triggers.length === 0) {
+      <app-empty-state title="No port triggers on the router" />
+    } @else {
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>State</th>
+              <th>Trigger</th>
+              <th>Opens</th>
+              @if (triggersWritable()) {
+                <th><span class="visually-hidden">Actions</span></th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of t.triggers; track r.domain) {
+              <tr>
+                <td>
+                  <app-state-badge
+                    [state]="r.enabled ? 'operational' : 'disabled'"
+                    [label]="r.enabled ? 'On' : 'Off'"
+                  />
+                </td>
+                <td class="mono">
+                  {{ r.triggerProtocol }} {{ range(r.triggerPortStart, r.triggerPortEnd) }}
+                </td>
+                <td class="mono">
+                  {{ r.openProtocol }} {{ range(r.openPortStart, r.openPortEnd) }}
+                </td>
+                @if (triggersWritable()) {
+                  <td class="row-actions">
+                    <button
+                      type="button"
+                      class="btn btn--sm"
+                      [disabled]="saving()"
+                      (click)="startEdit(r)"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn--sm btn--danger"
+                      [disabled]="saving()"
+                      (click)="removeTrigger(r)"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</section>

@@ -1,7 +1,7 @@
 <div class="page">
   <app-page-header
     title="Router"
-    description="Huawei OptiXstar, read and managed by the server through the router's web interface and UPnP. Changes are made only from the DHCP, Firewall &amp; UPnP, MAC filter and Port forwarding tabs, after confirmation."
+    description="Huawei OptiXstar, read and managed by the server through the router's web interface and UPnP. Changes are made only from the DHCP, Firewall &amp; UPnP, MAC filter and Port forwarding &amp; DMZ tabs, after confirmation."
   >
     @if (status.hasValue() && status.value().configured) {
       @let s = status.value();
@@ -96,7 +96,7 @@
           [attr.aria-pressed]="tab() === 'ports'"
           (click)="tab.set('ports')"
         >
-          Port forwarding
+          Port forwarding &amp; DMZ
         </button>
       </div>
 
@@ -372,7 +372,10 @@
       }
 
       @if (tab() === 'ports') {
-        <app-router-port-mapping />
+        <div class="stack">
+          <app-router-port-mapping />
+          <app-router-forwarding />
+        </div>
       }
 
       @if (tab() === 'mac') {
