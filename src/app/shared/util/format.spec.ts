@@ -20,6 +20,7 @@ describe('format helpers', () => {
   it('formats sizes and durations', () => {
     expect(formatBytes(512)).toBe('512 B');
     expect(formatBytes(2048)).toBe('2.0 KB');
+    expect(formatBytes(5 * 1024 ** 3)).toBe('5.0 GB');
     expect(formatBytes(5 * 1024 * 1024)).toBe('5.0 MB');
     expect(formatDuration(90)).toBe('1 min');
     expect(formatDuration(2 * 86_400 + 3 * 3600)).toBe('2 d 3 h');
