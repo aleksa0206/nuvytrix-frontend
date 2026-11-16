@@ -26,6 +26,9 @@ import type {
   PortTriggerRule,
   RouterDmzState,
   RouterPortTriggerState,
+  RouterWifiState,
+  WifiNetworkConfig,
+  WifiNetworkInput,
   RouterStatus,
 } from '../models/router.model';
 import { apiUrl, toParams } from '../api/http';
@@ -177,6 +180,22 @@ export class RouterService {
 
   deletePortTrigger(index: number) {
     return this.http.delete<PortTriggerRule[]>(apiUrl(`/router/port-triggers/${index}`));
+  }
+
+  wifiResource() {
+    return httpResource<RouterWifiState>(() => apiUrl('/router/wifi'));
+  }
+
+  addWifiNetwork(input: WifiNetworkInput & { band: WifiNetworkConfig['band']; password: string }) {
+    return this.http.post<{ network: WifiNetworkConfig }>(apiUrl('/router/wifi'), input);
+  }
+
+  updateWifiNetwork(index: number, input: WifiNetworkInput) {
+    return this.http.put<{ network: WifiNetworkConfig }>(apiUrl(`/router/wifi/${index}`), input);
+  }
+
+  deleteWifiNetwork(index: number) {
+    return this.http.delete<WifiNetworkConfig[]>(apiUrl(`/router/wifi/${index}`));
   }
 
   refresh() {

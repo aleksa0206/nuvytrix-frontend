@@ -314,3 +314,29 @@ export interface RouterPortTriggerState {
   internetWan: string | null;
   triggers: PortTriggerRule[];
 }
+
+export type WifiSecurity = 'open' | 'wep' | 'wpa' | 'wpa2' | 'wpa-wpa2' | 'wpa3' | 'other';
+
+export interface WifiNetworkConfig {
+  /** TR-098 path (`…WLANConfiguration.N`); `instance` is N, the index used by the API. */
+  domain: string;
+  instance: number;
+  band: '2.4 GHz' | '5 GHz';
+  enabled: boolean;
+  ssid: string;
+  visible: boolean;
+  security: WifiSecurity;
+}
+
+export interface RouterWifiState {
+  writesEnabled: boolean;
+  networks: WifiNetworkConfig[];
+}
+
+export interface WifiNetworkInput {
+  ssid: string;
+  enabled: boolean;
+  visible: boolean;
+  security: 'wpa2' | 'wpa-wpa2';
+  password?: string;
+}
