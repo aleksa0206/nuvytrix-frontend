@@ -10,7 +10,12 @@ import {
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { toApiError } from '../../core/api/api-error';
-import { DEVICE_TYPES, DEVICE_TYPE_LABELS, type DeviceType } from '../../core/models/device.model';
+import {
+  DEVICE_EVENT_LABELS,
+  DEVICE_TYPES,
+  DEVICE_TYPE_LABELS,
+  type DeviceType,
+} from '../../core/models/device.model';
 import { DevicesService } from '../../core/services/devices.service';
 import { LoadError, Loading } from '../../shared/ui/feedback';
 import { Icon, deviceIcon } from '../../shared/ui/icon';
@@ -45,11 +50,14 @@ export class DevicePanel {
   protected readonly deviceTypes = DEVICE_TYPES;
   protected readonly typeLabels = DEVICE_TYPE_LABELS;
   protected readonly iconFor = deviceIcon;
+  protected readonly eventLabels = DEVICE_EVENT_LABELS;
 
   protected readonly form = inject(NonNullableFormBuilder).group({
     customName: ['', Validators.maxLength(100)],
     deviceType: ['' as DeviceType | ''],
     notes: ['', Validators.maxLength(5000)],
+    tags: ['', Validators.pattern(/^\s*([a-z0-9][a-z0-9-]{0,23}\s*(,\s*|$))*$/i)],
+    trust: ['' as '' | 'trusted' | 'untrusted'],
   });
   protected readonly saving = signal(false);
   protected readonly savedAt = signal<Date | null>(null);
@@ -63,13 +71,15 @@ export class DevicePanel {
         customName: device.customName ?? '',
         deviceType: device.deviceType ?? '',
         notes: device.notes ?? '',
+        tags: device.tags.join(', '),
+        trust: device.trusted === null ? '' : device.trusted ? 'trusted' : 'untrusted',
       });
     });
   }
 
   protected save() {
     if (this.form.invalid || !this.device.hasValue()) return;
-    const { customName, deviceType, notes } = this.form.getRawValue();
+    const { customName, deviceType, notes, tags, trust } = this.form.getRawValue();
     this.saving.set(true);
     this.saveError.set(null);
     this.devices
@@ -77,6 +87,11 @@ export class DevicePanel {
         customName: customName.trim() || null,
         deviceType: deviceType || null,
         notes: notes.trim() || null,
+        tags: tags
+          .split(',')
+          .map((t) => t.trim().toLowerCase())
+          .filter(Boolean),
+        trusted: trust === '' ? null : trust === 'trusted',
       })
       .subscribe({
         next: () => {

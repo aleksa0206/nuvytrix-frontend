@@ -65,6 +65,11 @@ export class DevicesPage {
 
   private searchTimer: ReturnType<typeof setTimeout> | undefined;
 
+  protected setTrust(value: string) {
+    const trust = (['trusted', 'untrusted', 'unreviewed'] as const).find((t) => t === value);
+    this.query.update((q) => ({ ...q, trust, page: 1 }));
+  }
+
   protected setStatus(status: StatusFilter) {
     this.query.update((q) => ({ ...q, status, page: 1 }));
     this.syncUrl();

@@ -36,6 +36,18 @@
       </dd>
       <dt>First seen</dt>
       <dd>{{ d.firstSeenAt | dateTime }}</dd>
+      <dt>Connection</dt>
+      <dd>{{ d.connection === 'wifi' ? 'Wi-Fi' : d.connection === 'ethernet' ? 'Cable' : '—' }}</dd>
+      <dt>Address</dt>
+      <dd>
+        {{ d.addressSource === 'dhcp' ? 'DHCP' : d.addressSource === 'static' ? 'Static' : '—' }}
+        @if (d.reservedIp) {
+          · reserved <span class="mono">{{ d.reservedIp }}</span>
+        }
+        @if (d.leaseExpiresAt) {
+          · lease until {{ d.leaseExpiresAt | dateTime }}
+        }
+      </dd>
     </dl>
     @if (!d.macAddress) {
       <p class="hint">
@@ -65,6 +77,19 @@
         </select>
       </div>
       <div class="field">
+        <label for="dp-tags">Tags</label>
+        <input id="dp-tags" class="input" formControlName="tags" placeholder="family, kids, iot" />
+        <small class="field__hint">Comma separated; letters, digits and dashes.</small>
+      </div>
+      <div class="field">
+        <label for="dp-trust">Trust</label>
+        <select id="dp-trust" class="select" formControlName="trust">
+          <option value="">Not reviewed</option>
+          <option value="trusted">Trusted (I know this device)</option>
+          <option value="untrusted">Untrusted</option>
+        </select>
+      </div>
+      <div class="field">
         <label for="dp-notes">Notes</label>
         <textarea id="dp-notes" class="textarea" rows="3" formControlName="notes"></textarea>
       </div>
@@ -85,6 +110,22 @@
         <a class="full-link" [routerLink]="['/devices', d.id]">Full page</a>
       </div>
     </form>
+
+    @if (d.events.length) {
+      <div class="history">
+        <h3>Changes</h3>
+        <ul>
+          @for (e of d.events.slice(0, 6); track $index) {
+            <li>
+              <span class="mono">{{ e.at | dateTime }}</span>
+              <span class="text-secondary"
+                >{{ eventLabels[e.kind] }}: {{ e.oldValue ?? '' }} → {{ e.newValue ?? '' }}</span
+              >
+            </li>
+          }
+        </ul>
+      </div>
+    }
 
     <div class="history">
       <h3>Seen in scans</h3>

@@ -36,6 +36,22 @@
             <dd>{{ d.firstSeenAt | dateTime }}</dd>
             <dt>Last seen</dt>
             <dd>{{ d.lastSeenAt | dateTime }} ({{ d.lastSeenAt | relative }})</dd>
+            <dt>Connection</dt>
+            <dd>
+              {{ d.connection === 'wifi' ? 'Wi-Fi' : d.connection === 'ethernet' ? 'Cable' : '—' }}
+            </dd>
+            <dt>Address</dt>
+            <dd>
+              {{
+                d.addressSource === 'dhcp' ? 'DHCP' : d.addressSource === 'static' ? 'Static' : '—'
+              }}
+              @if (d.reservedIp) {
+                · reserved <span class="mono">{{ d.reservedIp }}</span>
+              }
+              @if (d.leaseExpiresAt) {
+                · lease until {{ d.leaseExpiresAt | dateTime }}
+              }
+            </dd>
           </dl>
         </div>
       </section>
@@ -57,6 +73,24 @@
             </select>
           </div>
           <div class="field">
+            <label for="dd-tags">Tags</label>
+            <input
+              id="dd-tags"
+              class="input"
+              formControlName="tags"
+              placeholder="family, kids, iot"
+            />
+            <small class="field__hint">Comma separated; letters, digits and dashes.</small>
+          </div>
+          <div class="field">
+            <label for="dd-trust">Trust</label>
+            <select id="dd-trust" class="select" formControlName="trust">
+              <option value="">Not reviewed</option>
+              <option value="trusted">Trusted (I know this device)</option>
+              <option value="untrusted">Untrusted</option>
+            </select>
+          </div>
+          <div class="field">
             <label for="notes">Notes</label>
             <textarea id="notes" class="textarea" rows="4" formControlName="notes"></textarea>
           </div>
@@ -74,6 +108,48 @@
         </form>
       </section>
     </div>
+
+    <section class="panel">
+      <header class="panel__header">
+        <h2>Presence · 7 days</h2>
+        <span class="panel__meta">from the router's device list, read every few minutes</span>
+      </header>
+      <div class="panel__body">
+        @if (presenceBuckets().length) {
+          <app-availability-strip [buckets]="presenceBuckets()" [hours]="168" />
+        } @else {
+          <p class="text-tertiary">No router readings for this device yet.</p>
+        }
+      </div>
+    </section>
+
+    @if (d.events.length) {
+      <section class="panel">
+        <header class="panel__header"><h2>Identity changes</h2></header>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">Time</th>
+                <th scope="col">Change</th>
+                <th scope="col">From</th>
+                <th scope="col">To</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (e of d.events; track $index) {
+                <tr>
+                  <td>{{ e.at | dateTime }}</td>
+                  <td>{{ eventLabels[e.kind] }}</td>
+                  <td class="mono">{{ e.oldValue ?? '—' }}</td>
+                  <td class="mono">{{ e.newValue ?? '—' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
 
     <section class="panel">
       <header class="panel__header"><h2>Seen in scans</h2></header>

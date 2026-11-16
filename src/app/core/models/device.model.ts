@@ -41,13 +41,31 @@ export interface Device {
   customName: string | null;
   deviceType: DeviceType | null;
   notes: string | null;
+  tags: string[];
+  /** null = not reviewed yet. */
+  trusted: boolean | null;
+  /** From the router: `dhcp` or `static`. */
+  addressSource: string | null;
+  leaseExpiresAt: string | null;
+  reservedIp: string | null;
+  connection: 'ethernet' | 'wifi' | 'unknown' | null;
   status: 'online' | 'offline';
   isNew: boolean;
   firstSeenAt: string;
   lastSeenAt: string;
 }
 
+export type DeviceEventKind = 'ip_changed' | 'hostname_changed' | 'mac_changed' | 'ip_conflict';
+
+export const DEVICE_EVENT_LABELS: Record<DeviceEventKind, string> = {
+  ip_changed: 'IP address changed',
+  hostname_changed: 'Hostname changed',
+  mac_changed: 'Took over the IP of another device',
+  ip_conflict: 'IP conflict',
+};
+
 export interface DeviceDetail extends Device {
+  events: { kind: DeviceEventKind; oldValue: string | null; newValue: string | null; at: string }[];
   observations: {
     scanId: number;
     ipAddress: string;
@@ -61,6 +79,8 @@ export interface DeviceQuery {
   pageSize: number;
   search?: string;
   status?: 'online' | 'offline' | 'new';
+  trust?: 'trusted' | 'untrusted' | 'unreviewed';
+  tag?: string;
   sort: 'last_seen_at' | 'first_seen_at' | 'ip_address' | 'name';
   order: 'asc' | 'desc';
 }
@@ -69,6 +89,8 @@ export interface DeviceChanges {
   customName?: string | null;
   deviceType?: DeviceType | null;
   notes?: string | null;
+  tags?: string[];
+  trusted?: boolean | null;
 }
 
 export interface DiscoveryScan {

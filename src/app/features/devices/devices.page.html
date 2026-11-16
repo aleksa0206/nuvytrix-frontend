@@ -100,6 +100,17 @@
             }
           </button>
         </div>
+        <select
+          class="select"
+          aria-label="Trust filter"
+          [value]="query().trust ?? ''"
+          (change)="setTrust($any($event.target).value)"
+        >
+          <option value="">Any trust</option>
+          <option value="unreviewed">Not reviewed</option>
+          <option value="trusted">Trusted</option>
+          <option value="untrusted">Untrusted</option>
+        </select>
         <input
           class="input search"
           type="search"
@@ -187,6 +198,14 @@
                             }}
                             @if (device.isNew) {
                               <span class="chip chip--accent">NEW</span>
+                            }
+                            @if (device.trusted === false) {
+                              <span class="chip chip--deny">UNTRUSTED</span>
+                            } @else if (device.trusted === null && !device.customName) {
+                              <span class="chip">NOT REVIEWED</span>
+                            }
+                            @for (tag of device.tags; track tag) {
+                              <span class="chip">{{ tag }}</span>
                             }
                           </span>
                           <small>{{

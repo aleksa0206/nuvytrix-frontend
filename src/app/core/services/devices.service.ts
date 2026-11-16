@@ -39,6 +39,18 @@ export class DevicesService {
     }));
   }
 
+  presenceResource(id: () => number | undefined, days: () => number) {
+    return httpResource<{
+      days: number;
+      points: { at: string; onlineShare: number; samples: number }[];
+    }>(() => {
+      const deviceId = id();
+      return deviceId
+        ? { url: apiUrl(`/devices/${deviceId}/presence`), params: { days: days() } }
+        : undefined;
+    });
+  }
+
   update(id: number, changes: DeviceChanges) {
     return this.http.patch<Device>(apiUrl(`/devices/${id}`), changes);
   }
