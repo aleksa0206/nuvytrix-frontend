@@ -240,3 +240,42 @@ export interface MacFilterEntryInput {
   name: string;
   ssid?: string;
 }
+
+export interface PortMappingRange {
+  domain: string;
+  protocol: string;
+  /** `start` or `start:end`. */
+  internalPort: string;
+  externalPort: string;
+  externalSourcePort: string;
+}
+
+export interface PortMappingRule {
+  /** TR-098 path; its last number is the index used by the API. */
+  domain: string;
+  enabled: boolean;
+  name: string;
+  internalHost: string;
+  remoteHostStart: string;
+  remoteHostEnd: string;
+  ranges: PortMappingRange[];
+}
+
+export interface RouterPortMappingState {
+  writesEnabled: boolean;
+  /** WAN connection mappings are created on; null when the router has none for internet. */
+  internetWan: string | null;
+  mappings: PortMappingRule[];
+}
+
+export interface PortMappingInput {
+  name: string;
+  enabled: boolean;
+  protocol: 'TCP' | 'UDP' | 'TCP/UDP';
+  internalHost: string;
+  internalPort: number;
+  externalPortStart: number;
+  externalPortEnd: number;
+  remoteHostStart: string;
+  remoteHostEnd: string;
+}

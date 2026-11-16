@@ -18,6 +18,9 @@ import type {
   MacFilterList,
   MacFilterState,
   RouterMacFilterState,
+  PortMappingInput,
+  PortMappingRule,
+  RouterPortMappingState,
   RouterStatus,
 } from '../models/router.model';
 import { apiUrl, toParams } from '../api/http';
@@ -119,6 +122,25 @@ export class RouterService {
 
   deleteMacFilterEntry(list: MacFilterList, index: number) {
     return this.http.delete<MacFilterState>(apiUrl(`/router/mac-filter/${list}/entries/${index}`));
+  }
+
+  portMappingResource() {
+    return httpResource<RouterPortMappingState>(() => apiUrl('/router/port-mappings'));
+  }
+
+  addPortMapping(input: PortMappingInput) {
+    return this.http.post<{ mapping: PortMappingRule }>(apiUrl('/router/port-mappings'), input);
+  }
+
+  updatePortMapping(index: number, input: PortMappingInput) {
+    return this.http.put<{ mapping: PortMappingRule }>(
+      apiUrl(`/router/port-mappings/${index}`),
+      input,
+    );
+  }
+
+  deletePortMapping(index: number) {
+    return this.http.delete<PortMappingRule[]>(apiUrl(`/router/port-mappings/${index}`));
   }
 
   refresh() {

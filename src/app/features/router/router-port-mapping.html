@@ -1,0 +1,251 @@
+<section class="panel">
+  <header class="panel__header">
+    <h2>Port forwarding on the router</h2>
+    <span class="panel__meta">read from the router now; changes are saved on the router</span>
+  </header>
+
+  @if (state.isLoading() && !state.hasValue()) {
+    <app-loading />
+  }
+  @if (state.error(); as error) {
+    <app-load-error [error]="error" (retry)="state.reload()" />
+  }
+
+  @if (state.hasValue()) {
+    @let s = state.value();
+    <div class="panel__body filter-state">
+      <span
+        >Port forwards <strong>{{ s.mappings.length }}</strong></span
+      >
+      <span
+        >Active <strong>{{ activeCount() }}</strong></span
+      >
+      @if (writable()) {
+        <span class="spacer"></span>
+        <button
+          type="button"
+          class="btn btn--primary"
+          [disabled]="saving()"
+          (click)="startCreate()"
+        >
+          New port forward
+        </button>
+      }
+    </div>
+
+    @if (!s.writesEnabled) {
+      <p class="panel__body notice notice--info">
+        Changing router settings is turned off on the server (ROUTER_WRITES_ENABLED). Port forwards
+        are shown read-only.
+      </p>
+    } @else if (!s.internetWan) {
+      <p class="panel__body notice notice--warning">
+        The router has no routed internet connection to forward ports from.
+      </p>
+    }
+    <p class="panel__body field__hint">
+      A port forward lets anyone on the internet reach that device on that port. If your provider
+      gives the router a shared (CGNAT) address, forwards are not reachable from the internet at
+      all.
+    </p>
+    @if (actionError()) {
+      <p class="panel__body notice notice--error" role="alert">{{ actionError() }}</p>
+    }
+
+    @if (editing()) {
+      <form class="panel__body stack" [formGroup]="form" (ngSubmit)="save()" novalidate>
+        <h3>{{ editing() === 'new' ? 'New port forward' : 'Edit port forward' }}</h3>
+        <div class="form-grid">
+          <div class="field">
+            <label for="pm-name">Name</label>
+            <input id="pm-name" class="input" formControlName="name" maxlength="31" />
+            @if (fieldError('name'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <div class="field">
+            <label for="pm-protocol">Protocol</label>
+            <select id="pm-protocol" class="select" formControlName="protocol">
+              @for (p of protocols; track p) {
+                <option [value]="p">{{ p }}</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label for="pm-host">Device address</label>
+            <input
+              id="pm-host"
+              class="input mono"
+              formControlName="internalHost"
+              list="pm-devices"
+              placeholder="192.168.100.50"
+            />
+            <datalist id="pm-devices">
+              @for (d of devices(); track d.macAddress) {
+                <option [value]="d.ipAddress">
+                  {{ d.customName ?? d.hostName ?? d.macAddress }}
+                </option>
+              }
+            </datalist>
+            @if (fieldError('internalHost'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <div class="field">
+            <label for="pm-ext-start">External port</label>
+            <input
+              id="pm-ext-start"
+              class="input mono"
+              type="number"
+              min="1"
+              max="65535"
+              formControlName="externalPortStart"
+              (input)="externalStartChanged()"
+            />
+            @if (fieldError('externalPortStart'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <div class="field">
+            <label for="pm-ext-end">Last external port (optional, for a range)</label>
+            <input
+              id="pm-ext-end"
+              class="input mono"
+              type="number"
+              min="1"
+              max="65535"
+              formControlName="externalPortEnd"
+            />
+            @if (fieldError('externalPortEnd'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <div class="field">
+            <label for="pm-int">Port on the device</label>
+            <input
+              id="pm-int"
+              class="input mono"
+              type="number"
+              min="1"
+              max="65535"
+              formControlName="internalPort"
+            />
+            @if (fieldError('internalPort'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <div class="field">
+            <label for="pm-remote-start">Only from internet address (optional)</label>
+            <input id="pm-remote-start" class="input mono" formControlName="remoteHostStart" />
+            @if (fieldError('remoteHostStart'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <div class="field">
+            <label for="pm-remote-end">… to address (optional)</label>
+            <input id="pm-remote-end" class="input mono" formControlName="remoteHostEnd" />
+            @if (fieldError('remoteHostEnd'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <label class="field checkbox">
+            <input type="checkbox" formControlName="enabled" />
+            On
+          </label>
+        </div>
+        @if (formError()) {
+          <p class="notice notice--error" role="alert">{{ formError() }}</p>
+        }
+        <div class="toolbar">
+          <button type="submit" class="btn btn--primary" [disabled]="saving()">
+            {{ saving() ? 'Saving on the router…' : 'Save on the router' }}
+          </button>
+          <button type="button" class="btn" [disabled]="saving()" (click)="editing.set(null)">
+            Cancel
+          </button>
+        </div>
+      </form>
+    }
+
+    @if (s.mappings.length === 0) {
+      <app-empty-state title="No port forwards on the router" />
+    } @else {
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>State</th>
+              <th>External ports</th>
+              <th>Device</th>
+              <th>From</th>
+              @if (writable()) {
+                <th><span class="visually-hidden">Actions</span></th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (m of s.mappings; track m.domain) {
+              <tr>
+                <td>{{ m.name || '—' }}</td>
+                <td>
+                  <app-state-badge
+                    [state]="m.enabled ? 'operational' : 'disabled'"
+                    [label]="m.enabled ? 'On' : 'Off'"
+                  />
+                </td>
+                <td class="mono">
+                  @for (r of m.ranges; track r.domain) {
+                    <div>
+                      {{ r.protocol }} {{ r.externalPort.replace(':', '–') }} → {{ r.internalPort }}
+                    </div>
+                  }
+                </td>
+                <td class="mono">
+                  {{ m.internalHost }}
+                  @if (deviceName(m.internalHost); as name) {
+                    <span class="field__hint">({{ name }})</span>
+                  }
+                </td>
+                <td class="mono">
+                  {{ m.remoteHostStart || 'anywhere'
+                  }}{{ m.remoteHostEnd ? '–' + m.remoteHostEnd : '' }}
+                </td>
+                @if (writable()) {
+                  <td class="row-actions">
+                    @if (m.ranges.length === 1) {
+                      <button
+                        type="button"
+                        class="btn btn--sm"
+                        [disabled]="saving()"
+                        (click)="toggle(m)"
+                      >
+                        {{ m.enabled ? 'Turn off' : 'Turn on' }}
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn--sm"
+                        [disabled]="saving()"
+                        (click)="startEdit(m)"
+                      >
+                        Edit
+                      </button>
+                    }
+                    <button
+                      type="button"
+                      class="btn btn--sm btn--danger"
+                      [disabled]="saving()"
+                      (click)="remove(m)"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</section>
