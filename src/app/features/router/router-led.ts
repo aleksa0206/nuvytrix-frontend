@@ -4,12 +4,11 @@ import { apiUrl } from '../../core/api/http';
 import { toApiError } from '../../core/api/api-error';
 import { LoadError, Loading } from '../../shared/ui/feedback';
 
-type LedMode = 'on' | 'off' | 'offAfterDelay';
+type LedMode = 'on' | 'off';
 
 const LABELS: Record<LedMode, string> = {
   on: 'On',
   off: 'Off',
-  offAfterDelay: 'Off after a short while',
 };
 
 /** The router's indicator lights. */
@@ -64,7 +63,7 @@ export class RouterLed {
     apiUrl('/router/led'),
   );
   protected readonly labels = LABELS;
-  protected readonly modes: LedMode[] = ['on', 'offAfterDelay', 'off'];
+  protected readonly modes: LedMode[] = ['on', 'off'];
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly writable = computed(
