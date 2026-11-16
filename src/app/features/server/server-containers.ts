@@ -4,7 +4,7 @@ import { apiUrl } from '../../core/api/http';
 import { pollWhileVisible } from '../../core/polling';
 import { EmptyState, LoadError, Loading } from '../../shared/ui/feedback';
 import { StateBadge } from '../../shared/ui/state-badge';
-import { formatBytes, formatDuration } from '../../shared/util/format';
+import { formatBytes } from '../../shared/util/format';
 import { RelativePipe } from '../../shared/util/format.pipes';
 
 interface ContainerState {
@@ -15,8 +15,8 @@ interface ContainerState {
   image: string;
   state: string;
   health: string | null;
-  restartCount: number;
-  startedAt: string | null;
+  /** Docker's status text, e.g. "Up 2 hours (healthy)". */
+  status: string;
   uptimeSeconds: number | null;
   cpuPercent: number | null;
   memoryBytes: number | null;
@@ -69,8 +69,7 @@ interface DockerStatus {
                 <tr>
                   <th scope="col">Container</th>
                   <th scope="col">State</th>
-                  <th scope="col">Uptime</th>
-                  <th scope="col" class="num">Restarts</th>
+                  <th scope="col">Status</th>
                   <th scope="col" class="num">CPU</th>
                   <th scope="col" class="num">Memory</th>
                 </tr>
@@ -100,8 +99,7 @@ interface DockerStatus {
                         "
                       />
                     </td>
-                    <td>{{ c.uptimeSeconds !== null ? duration(c.uptimeSeconds) : '—' }}</td>
-                    <td class="num mono">{{ c.restartCount }}</td>
+                    <td [title]="c.status">{{ c.status }}</td>
                     <td class="num mono">
                       {{ c.cpuPercent !== null ? c.cpuPercent + ' %' : '—' }}
                     </td>
@@ -120,7 +118,6 @@ interface DockerStatus {
 })
 export class ServerContainers {
   protected readonly docker = httpResource<DockerStatus>(() => apiUrl('/docker/containers'));
-  protected readonly duration = formatDuration;
   protected readonly bytes = formatBytes;
 
   constructor() {
