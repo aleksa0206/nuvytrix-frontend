@@ -34,6 +34,32 @@
           }}
         </span>
       </a>
+      <a class="health__cell" routerLink="/monitoring">
+        <span class="health__name">Internet</span>
+        <app-state-badge [state]="internetState()" />
+        <span class="health__value mono">
+          @let internetLatency = internetTarget()?.lastCheck?.latencyMs ?? null;
+          {{ internetLatency !== null ? internetLatency + ' ms' : '—' }}
+        </span>
+        <span class="health__note">
+          ping 1.1.1.1 ·
+          {{ lastDownload() !== null ? mbps(lastDownload()) + ' Mbit/s down' : 'no traffic data' }}
+        </span>
+      </a>
+      @if (routerNow(); as rn) {
+        <a class="health__cell" routerLink="/router">
+          <span class="health__name">Fiber</span>
+          <app-state-badge [state]="rn.fiberState" />
+          <span class="health__value mono">{{ rn.rx !== null ? rn.rx + ' dBm' : '—' }}</span>
+          <span class="health__note">received signal</span>
+        </a>
+        <a class="health__cell" routerLink="/router">
+          <span class="health__name">Wi-Fi</span>
+          <app-state-badge [state]="rn.wifiClients !== null ? 'operational' : 'unknown'" />
+          <span class="health__value mono">{{ rn.wifiClients ?? '—' }}</span>
+          <span class="health__note">devices on Wi-Fi</span>
+        </a>
+      }
       <div class="health__cell">
         <span class="health__name">Server</span>
         <app-state-badge
@@ -130,6 +156,26 @@
 
         <section class="panel">
           <header class="panel__header">
+            <h2>Internet download · 24 h</h2>
+            <span class="panel__meta">Mbit/s on the fiber line</span>
+          </header>
+          <div class="panel__body">
+            @if (downloadPoints().length > 2) {
+              <app-line-chart
+                [points]="downloadPoints()"
+                [bucketMinutes]="10"
+                unit=" Mb"
+                [height]="130"
+                label="Internet download over the last 24 hours"
+              />
+            } @else {
+              <app-empty-state title="Collecting samples" />
+            }
+          </div>
+        </section>
+
+        <section class="panel">
+          <header class="panel__header">
             <h2>Network map</h2>
             <a routerLink="/topology" class="panel__meta">Open topology</a>
           </header>
@@ -154,6 +200,40 @@
       </div>
 
       <div class="side-column">
+        <section class="panel">
+          <header class="panel__header">
+            <h2>Notifications</h2>
+            @if (alerts.hasValue() && alerts.value().unread > 0) {
+              <button type="button" class="btn btn--ghost btn--sm" (click)="markAllRead()">
+                Mark all read ({{ alerts.value().unread }})
+              </button>
+            }
+          </header>
+          @if (alerts.hasValue()) {
+            @if (alerts.value().alerts.length === 0) {
+              <p class="all-clear">No notifications yet.</p>
+            } @else {
+              <ul class="attention notifications">
+                @for (alert of alerts.value().alerts.slice(0, 8); track alert.id) {
+                  <li
+                    [class]="'attention__item is-' + alert.severity"
+                    [class.is-unread]="!alert.read"
+                  >
+                    <span class="attention__bar" aria-hidden="true"></span>
+                    <span class="attention__text">
+                      <strong>{{ alert.title }}</strong>
+                      <small>{{ alert.createdAt | dateTime }}</small>
+                    </span>
+                    @if (!alert.read) {
+                      <span class="visually-hidden">unread</span>
+                    }
+                  </li>
+                }
+              </ul>
+            }
+          }
+        </section>
+
         <section class="panel">
           <header class="panel__header">
             <h2>Needs attention</h2>

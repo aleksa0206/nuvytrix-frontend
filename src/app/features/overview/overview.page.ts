@@ -1,10 +1,13 @@
+import { HttpClient, httpResource } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { apiUrl } from '../../core/api/http';
 import { pollWhileVisible } from '../../core/polling';
 import { DIRECTION_LABELS, type FirewallDirection } from '../../core/models/firewall.model';
 import type { Overview } from '../../core/models/system.model';
 import { DevicesService } from '../../core/services/devices.service';
 import { FirewallService } from '../../core/services/firewall.service';
+import { RouterService } from '../../core/services/router.service';
 import { SystemService } from '../../core/services/system.service';
 import { AvailabilityStrip } from '../../shared/ui/availability-strip';
 import { EmptyState, LoadError, Loading } from '../../shared/ui/feedback';
@@ -18,6 +21,15 @@ import {
   NumberPipe,
   RelativePipe,
 } from '../../shared/util/format.pipes';
+
+interface Alert {
+  id: number;
+  kind: string;
+  severity: 'info' | 'warning' | 'error';
+  title: string;
+  createdAt: string;
+  read: boolean;
+}
 
 interface Attention {
   severity: 'error' | 'warning';
@@ -67,8 +79,63 @@ export class OverviewPage {
   }));
   protected readonly changes = this.system.auditResource(() => 1);
 
+  private readonly http = inject(HttpClient);
+  private readonly routerApi = inject(RouterService);
+  protected readonly alerts = httpResource<{ unread: number; alerts: Alert[] }>(() =>
+    apiUrl('/alerts'),
+  );
+  protected readonly routerStatus = this.routerApi.statusResource();
+  protected readonly traffic = this.routerApi.historyResource(() => 24);
+  protected readonly internetTarget = computed(() =>
+    this.targets.hasValue()
+      ? this.targets.value().find((target) => target.managedKey === 'internet')
+      : undefined,
+  );
+  protected readonly internetState = computed(() => {
+    const status = this.internetTarget()?.status;
+    return status === 'up'
+      ? 'operational'
+      : status === 'degraded'
+        ? 'warning'
+        : status === 'down'
+          ? 'error'
+          : 'unknown';
+  });
+  /** Fiber signal and Wi-Fi from the last router reading; null until the router was read. */
+  protected readonly routerNow = computed(() => {
+    const s = this.routerStatus.hasValue() ? this.routerStatus.value() : null;
+    if (!s || !s.configured) return null;
+    const rx = s.optical?.rxPowerDbm ?? null;
+    return {
+      rx,
+      fiberState: !s.optical
+        ? 'unknown'
+        : s.optical.lossOfSignal
+          ? 'error'
+          : rx !== null && rx < -27
+            ? 'warning'
+            : 'operational',
+      wifiClients: s.wifiClients,
+    } as const;
+  });
+  /** Internet download in Mbit/s from the fiber counters. */
+  protected readonly downloadPoints = computed(() =>
+    this.traffic.hasValue()
+      ? this.traffic.value().points.map((p) => ({
+          at: p.at,
+          value: p.wanDownloadBps === null ? null : Math.round(p.wanDownloadBps / 10_000) / 100,
+        }))
+      : [],
+  );
+  protected readonly lastDownload = computed(() => {
+    const points = this.traffic.hasValue() ? this.traffic.value().points : [];
+    return [...points].reverse().find((p) => p.wanDownloadBps !== null)?.wanDownloadBps ?? null;
+  });
+
   private readonly routerTargetId = computed(() =>
-    this.targets.hasValue() ? this.targets.value().find((target) => target.managed)?.id : undefined,
+    this.targets.hasValue()
+      ? this.targets.value().find((target) => target.managedKey === 'router')?.id
+      : undefined,
   );
   protected readonly routerSeries = this.system.seriesResource(this.routerTargetId, signal(24));
   protected readonly latencyPoints = computed(() =>
@@ -91,7 +158,21 @@ export class OverviewPage {
       this.overview.reload();
       this.targets.reload();
       this.routerSeries.reload();
+      this.alerts.reload();
+      this.routerStatus.reload();
+      this.traffic.reload();
     }, 30_000);
+  }
+
+  protected markAllRead() {
+    this.http.post(apiUrl('/alerts/read-all'), {}).subscribe(() => {
+      this.alerts.reload();
+      this.overview.reload();
+    });
+  }
+
+  protected mbps(bps: number | null): string {
+    return bps === null ? '—' : (bps / 1_000_000).toFixed(2);
   }
 
   protected openDevice(id: number) {

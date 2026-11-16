@@ -11,6 +11,8 @@ export interface MonitoringTarget {
   dnsQueryName: string | null;
   enabled: boolean;
   managed: boolean;
+  /** `router` or `internet` for the built-in targets. */
+  managedKey: string | null;
   status: TargetStatus;
   lastCheck: {
     checkedAt: string;
@@ -116,6 +118,7 @@ export interface Overview {
   monitoring: { state: HealthState; targets: number; failing: { id: number; name: string }[] };
   dns: { state: HealthState; provider: string };
   policies: { pendingManual: number; failed: number };
+  alerts: { unread: number };
 }
 
 export type CapabilityStatus =

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
@@ -39,6 +39,9 @@ export class AppShell {
   /** Feeds the status bar; the same data as the overview, refreshed every minute. */
   protected readonly status = inject(SystemService).overviewResource();
   protected readonly navOpen = signal(false);
+  protected readonly unread = computed(() =>
+    this.status.hasValue() ? (this.status.value().alerts?.unread ?? 0) : 0,
+  );
 
   protected readonly nav: NavGroup[] = [
     {

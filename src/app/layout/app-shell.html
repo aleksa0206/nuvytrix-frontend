@@ -23,6 +23,11 @@
             <a [routerLink]="item.path" routerLinkActive="is-active" ariaCurrentWhenActive="page">
               <app-icon [name]="item.icon" />
               <span>{{ item.label }}</span>
+              @if (item.path === '/overview' && unread() > 0) {
+                <span class="nav-badge" [attr.aria-label]="unread() + ' unread notifications'">{{
+                  unread()
+                }}</span>
+              }
             </a>
           </li>
         }
