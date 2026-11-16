@@ -32,6 +32,9 @@ import type {
   RouterParentalState,
   DnsHost,
   RouterDnsHostsState,
+  DdnsEntry,
+  DdnsInput,
+  RouterDdnsState,
   WifiNetworkConfig,
   WifiNetworkInput,
   RouterStatus,
@@ -261,6 +264,22 @@ export class RouterService {
 
   deleteDnsHost(index: number) {
     return this.http.delete<DnsHost[]>(apiUrl(`/router/dns-hosts/${index}`));
+  }
+
+  ddnsResource() {
+    return httpResource<RouterDdnsState>(() => apiUrl('/router/ddns'));
+  }
+
+  addDdns(input: DdnsInput) {
+    return this.http.post<DdnsEntry>(apiUrl('/router/ddns'), input);
+  }
+
+  updateDdns(index: number, input: DdnsInput) {
+    return this.http.put<DdnsEntry>(apiUrl(`/router/ddns/${index}`), input);
+  }
+
+  deleteDdns(index: number) {
+    return this.http.delete<DdnsEntry[]>(apiUrl(`/router/ddns/${index}`));
   }
 
   refresh() {

@@ -390,3 +390,32 @@ export interface RouterDnsHostsState {
   writesEnabled: boolean;
   hosts: DnsHost[];
 }
+
+export interface DdnsEntry {
+  domain: string;
+  index: number;
+  enabled: boolean;
+  provider: string;
+  username: string;
+  port: number | null;
+  domainName: string;
+  serverHost: string;
+  status: string;
+  lastError: string;
+}
+
+export interface RouterDdnsState {
+  writesEnabled: boolean;
+  internetWan: string | null;
+  entries: DdnsEntry[];
+}
+
+export interface DdnsInput {
+  enabled: boolean;
+  provider: string;
+  username: string;
+  password?: string;
+  domainName: string;
+  serverHost: string;
+  port: number;
+}

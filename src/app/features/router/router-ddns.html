@@ -1,0 +1,170 @@
+<section class="panel">
+  <header class="panel__header">
+    <h2>Dynamic DNS on the router</h2>
+    <span class="panel__meta">keeps a name pointed at the router's internet address</span>
+  </header>
+
+  @if (ddns.isLoading() && !ddns.hasValue()) {
+    <app-loading />
+  }
+  @if (ddns.error(); as error) {
+    <app-load-error [error]="error" (retry)="ddns.reload()" />
+  }
+
+  @if (ddns.hasValue()) {
+    @let d = ddns.value();
+    <p class="panel__body field__hint">
+      Not needed for sites published through Cloudflare Tunnel, and it cannot help while the
+      provider gives the router a shared (CGNAT) address.
+    </p>
+    @if (writable()) {
+      <div class="panel__body filter-state">
+        <span class="spacer"></span>
+        <button type="button" class="btn" [disabled]="saving()" (click)="startCreate()">
+          New DDNS entry
+        </button>
+      </div>
+    }
+    @if (actionError()) {
+      <p class="panel__body notice notice--error" role="alert">{{ actionError() }}</p>
+    }
+
+    @if (editing(); as e) {
+      <form class="panel__body stack" [formGroup]="form" (ngSubmit)="save()" novalidate>
+        <div class="form-grid">
+          <div class="field">
+            <label for="ddns-provider">Provider</label>
+            <select
+              id="ddns-provider"
+              class="select"
+              formControlName="provider"
+              (change)="providerChanged()"
+            >
+              @for (p of providers; track p.value) {
+                <option [value]="p.value">{{ p.label }}</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label for="ddns-domain">Name to keep updated</label>
+            <input
+              id="ddns-domain"
+              class="input mono"
+              formControlName="domainName"
+              placeholder="home.example.com"
+            />
+            @if (fieldError('domainName'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <div class="field">
+            <label for="ddns-user">Provider username</label>
+            <input id="ddns-user" class="input" formControlName="username" autocomplete="off" />
+            @if (fieldError('username'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <div class="field">
+            <label for="ddns-pass">{{
+              e === 'new' ? 'Provider password' : 'New password (leave empty to keep)'
+            }}</label>
+            <input
+              id="ddns-pass"
+              class="input"
+              type="password"
+              formControlName="password"
+              autocomplete="new-password"
+            />
+            @if (fieldError('password'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <div class="field">
+            <label for="ddns-server">Update server</label>
+            <input id="ddns-server" class="input mono" formControlName="serverHost" />
+            @if (fieldError('serverHost'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <div class="field">
+            <label for="ddns-port">Port</label>
+            <input id="ddns-port" class="input" type="number" formControlName="port" />
+          </div>
+          <label class="field checkbox">
+            <input type="checkbox" formControlName="enabled" />
+            On
+          </label>
+        </div>
+        @if (formError()) {
+          <p class="notice notice--error" role="alert">{{ formError() }}</p>
+        }
+        <div class="toolbar">
+          <button type="submit" class="btn btn--primary" [disabled]="saving()">
+            {{ saving() ? 'Saving on the router…' : 'Save on the router' }}
+          </button>
+          <button type="button" class="btn" [disabled]="saving()" (click)="editing.set(null)">
+            Cancel
+          </button>
+        </div>
+      </form>
+    }
+
+    @if (d.entries.length === 0) {
+      <app-empty-state title="No DDNS entries on the router" />
+    } @else {
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Provider</th>
+              <th>State</th>
+              <th>Status</th>
+              @if (writable()) {
+                <th><span class="visually-hidden">Actions</span></th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (x of d.entries; track x.domain) {
+              <tr>
+                <td class="mono">{{ x.domainName }}</td>
+                <td>
+                  {{ providerLabel(x.provider) }}
+                  <span class="field__hint">({{ x.username }})</span>
+                </td>
+                <td>
+                  <app-state-badge
+                    [state]="x.enabled ? 'operational' : 'disabled'"
+                    [label]="x.enabled ? 'On' : 'Off'"
+                  />
+                </td>
+                <td>{{ x.lastError || x.status || '—' }}</td>
+                @if (writable()) {
+                  <td class="row-actions">
+                    <button
+                      type="button"
+                      class="btn btn--sm"
+                      [disabled]="saving()"
+                      (click)="startEdit(x)"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn--sm btn--danger"
+                      [disabled]="saving()"
+                      (click)="remove(x)"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</section>
