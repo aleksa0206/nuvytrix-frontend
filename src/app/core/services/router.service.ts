@@ -30,6 +30,8 @@ import type {
   ParentalDevice,
   ParentalTemplateUpdate,
   RouterParentalState,
+  DnsHost,
+  RouterDnsHostsState,
   WifiNetworkConfig,
   WifiNetworkInput,
   RouterStatus,
@@ -243,6 +245,22 @@ export class RouterService {
 
   deleteParentalDevice(index: number) {
     return this.http.delete(apiUrl(`/router/parental/devices/${index}`));
+  }
+
+  dnsHostsResource() {
+    return httpResource<RouterDnsHostsState>(() => apiUrl('/router/dns-hosts'));
+  }
+
+  addDnsHost(host: { name: string; ip: string }) {
+    return this.http.post<DnsHost>(apiUrl('/router/dns-hosts'), host);
+  }
+
+  updateDnsHost(index: number, host: { name: string; ip: string }) {
+    return this.http.put<DnsHost>(apiUrl(`/router/dns-hosts/${index}`), host);
+  }
+
+  deleteDnsHost(index: number) {
+    return this.http.delete<DnsHost[]>(apiUrl(`/router/dns-hosts/${index}`));
   }
 
   refresh() {

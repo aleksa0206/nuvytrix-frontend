@@ -1,0 +1,130 @@
+<section class="panel">
+  <header class="panel__header">
+    <h2>Static DNS on the router</h2>
+    <span class="panel__meta">names the router answers itself, e.g. nas.lan</span>
+  </header>
+
+  @if (dns.isLoading() && !dns.hasValue()) {
+    <app-loading />
+  }
+  @if (dns.error(); as error) {
+    <app-load-error [error]="error" (retry)="dns.reload()" />
+  }
+
+  @if (dns.hasValue()) {
+    @let d = dns.value();
+    @if (writable()) {
+      <div class="panel__body filter-state">
+        <span class="field__hint">Works for devices that use the router as their DNS server.</span>
+        <span class="spacer"></span>
+        <button
+          type="button"
+          class="btn btn--primary"
+          [disabled]="saving() || d.hosts.length >= 20"
+          (click)="startCreate()"
+        >
+          New entry
+        </button>
+      </div>
+    }
+    @if (actionError()) {
+      <p class="panel__body notice notice--error" role="alert">{{ actionError() }}</p>
+    }
+
+    @if (editing()) {
+      <form class="panel__body stack" [formGroup]="form" (ngSubmit)="save()" novalidate>
+        <div class="form-grid">
+          <div class="field">
+            <label for="dns-name">Name</label>
+            <input id="dns-name" class="input mono" formControlName="name" placeholder="nas.lan" />
+            @if (fieldError('name'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <div class="field">
+            <label for="dns-ip">Address</label>
+            <input
+              id="dns-ip"
+              class="input mono"
+              formControlName="ip"
+              list="dns-devices"
+              placeholder="192.168.100.50"
+            />
+            <datalist id="dns-devices">
+              @for (c of devices(); track c.macAddress) {
+                <option [value]="c.ipAddress">
+                  {{ c.customName ?? c.hostName ?? c.macAddress }}
+                </option>
+              }
+            </datalist>
+            @if (fieldError('ip'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+        </div>
+        @if (formError()) {
+          <p class="notice notice--error" role="alert">{{ formError() }}</p>
+        }
+        <div class="toolbar">
+          <button type="submit" class="btn btn--primary" [disabled]="saving()">
+            {{ saving() ? 'Saving on the router…' : 'Save on the router' }}
+          </button>
+          <button type="button" class="btn" [disabled]="saving()" (click)="editing.set(null)">
+            Cancel
+          </button>
+        </div>
+      </form>
+    }
+
+    @if (d.hosts.length === 0) {
+      <app-empty-state title="No static DNS entries on the router" />
+    } @else {
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Address</th>
+              @if (writable()) {
+                <th><span class="visually-hidden">Actions</span></th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (h of d.hosts; track h.domain) {
+              <tr>
+                <td class="mono">{{ h.name }}</td>
+                <td class="mono">
+                  {{ h.ip }}
+                  @if (deviceName(h.ip); as name) {
+                    <span class="field__hint">({{ name }})</span>
+                  }
+                </td>
+                @if (writable()) {
+                  <td class="row-actions">
+                    <button
+                      type="button"
+                      class="btn btn--sm"
+                      [disabled]="saving()"
+                      (click)="startEdit(h)"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn--sm btn--danger"
+                      [disabled]="saving()"
+                      (click)="remove(h)"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</section>

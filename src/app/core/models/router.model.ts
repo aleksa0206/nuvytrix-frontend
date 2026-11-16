@@ -378,3 +378,15 @@ export interface RouterParentalState {
 export type ParentalTemplateUpdate = Partial<
   Pick<ParentalTemplate, 'name' | 'timeEnabled' | 'timeMode' | 'urlEnabled' | 'urlMode'>
 >;
+
+export interface DnsHost {
+  domain: string;
+  index: number;
+  name: string;
+  ip: string;
+}
+
+export interface RouterDnsHostsState {
+  writesEnabled: boolean;
+  hosts: DnsHost[];
+}
