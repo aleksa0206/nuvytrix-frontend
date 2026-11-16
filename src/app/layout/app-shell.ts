@@ -71,6 +71,7 @@ export class AppShell {
         { path: '/firewall/insights', label: 'Insights', icon: 'insights' },
         { path: '/firewall/policies', label: 'Rules', icon: 'rules' },
         { path: '/firewall/imports', label: 'Log imports', icon: 'imports' },
+        { path: '/security/ssh', label: 'SSH logins', icon: 'rules' },
       ],
     },
     {
