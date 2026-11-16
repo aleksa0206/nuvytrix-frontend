@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
@@ -37,7 +45,8 @@ export class AppShell {
   private readonly router = inject(Router);
 
   /** Feeds the status bar; the same data as the overview, refreshed every minute. */
-  protected readonly status = inject(SystemService).overviewResource();
+  private readonly system = inject(SystemService);
+  protected readonly status = this.system.overviewResource();
   protected readonly navOpen = signal(false);
   protected readonly unread = computed(() =>
     this.status.hasValue() ? (this.status.value().alerts?.unread ?? 0) : 0,
@@ -74,6 +83,9 @@ export class AppShell {
 
   constructor() {
     pollWhileVisible(() => this.status.reload(), 60_000);
+    effect(() => {
+      if (this.system.statusChanged() > 0) untracked(() => this.status.reload());
+    });
     this.router.events
       .pipe(
         filter((event) => event instanceof NavigationEnd),

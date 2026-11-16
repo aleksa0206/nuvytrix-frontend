@@ -168,6 +168,7 @@ export class OverviewPage {
     this.http.post(apiUrl('/alerts/read-all'), {}).subscribe(() => {
       this.alerts.reload();
       this.overview.reload();
+      this.system.statusChanged.update((n) => n + 1);
     });
   }
 

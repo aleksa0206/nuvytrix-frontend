@@ -1,5 +1,5 @@
 import { HttpClient, httpResource } from '@angular/common/http';
-import { Service, inject } from '@angular/core';
+import { Service, inject, signal } from '@angular/core';
 import type { Paginated } from '../models/api.models';
 import type {
   AuditEntry,
@@ -18,6 +18,8 @@ import { apiUrl, toParams } from '../api/http';
 @Service()
 export class SystemService {
   private http = inject(HttpClient);
+  /** Bumped when something changes the status bar's data (e.g. notifications marked read). */
+  readonly statusChanged = signal(0);
 
   overviewResource() {
     return httpResource<Overview>(() => apiUrl('/overview'));
