@@ -6,6 +6,15 @@ import { ConfirmService } from '../../shared/ui/confirm-dialog';
 import { LoadError, Loading } from '../../shared/ui/feedback';
 
 type Band = '2.4 GHz' | '5 GHz';
+type Width = 'auto-40' | '20' | '40' | 'auto-80' | '160';
+
+const WIDTH_LABELS: Record<Width, string> = {
+  'auto-40': 'Auto 20/40 MHz',
+  '20': '20 MHz',
+  '40': '40 MHz',
+  'auto-80': 'Auto 20/40/80 MHz',
+  '160': '160 MHz',
+};
 
 interface WifiRadio {
   domain: string;
@@ -15,6 +24,9 @@ interface WifiRadio {
   power: number;
   standard: string;
   country: string;
+  /** Null when the router uses a width Nuvytrix does not offer. */
+  width: Width | null;
+  wpsEnabled: boolean | null;
 }
 
 interface WifiRadios {
@@ -22,9 +34,16 @@ interface WifiRadios {
   radios: WifiRadio[];
   channels: Record<Band, number[]>;
   powerLevels: number[];
+  widths: Record<Band, Width[]>;
 }
 
-/** Channel and transmit power per Wi-Fi band. */
+interface Draft {
+  channel: 'auto' | number;
+  power: number;
+  width: Width | null;
+}
+
+/** Channel, transmit power, channel width and WPS per Wi-Fi band. */
 @Component({
   selector: 'app-router-wifi-radios',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -34,7 +53,7 @@ interface WifiRadios {
     <section class="panel">
       <header class="panel__header">
         <h2>Wi-Fi radios</h2>
-        <span class="panel__meta">channel and signal strength per band</span>
+        <span class="panel__meta">channel, signal strength, width and WPS per band</span>
       </header>
       @if (radios.isLoading() && !radios.hasValue()) {
         <app-loading />
@@ -51,7 +70,9 @@ interface WifiRadios {
                 <th>Band</th>
                 <th>Channel</th>
                 <th>Signal strength</th>
+                <th>Channel width</th>
                 <th>Standard</th>
+                <th>WPS</th>
                 @if (writable()) {
                   <th><span class="visually-hidden">Actions</span></th>
                 }
@@ -101,13 +122,52 @@ interface WifiRadios {
                       {{ radio.power }}%
                     }
                   </td>
+                  <td>
+                    @if (writable()) {
+                      <select
+                        class="select"
+                        [attr.aria-label]="'Channel width ' + radio.band"
+                        [disabled]="saving()"
+                        #width
+                        (change)="draftWidth(radio.band, $any(width.value))"
+                      >
+                        @if (radio.width === null) {
+                          <option value="" selected disabled>Other (set on the router)</option>
+                        }
+                        @for (w of r.widths[radio.band]; track w) {
+                          <option [value]="w" [selected]="radio.width === w">
+                            {{ widthLabels[w] }}
+                          </option>
+                        }
+                      </select>
+                    } @else {
+                      {{ radio.width ? widthLabels[radio.width] : 'Other' }}
+                    }
+                  </td>
                   <td>{{ radio.standard }}</td>
+                  <td>
+                    @if (radio.wpsEnabled === null) {
+                      —
+                    } @else {
+                      {{ radio.wpsEnabled ? 'On' : 'Off' }}
+                      @if (writable()) {
+                        <button
+                          type="button"
+                          class="btn btn--sm"
+                          [disabled]="saving()"
+                          (click)="setWps(radio, !radio.wpsEnabled)"
+                        >
+                          {{ radio.wpsEnabled ? 'Turn off' : 'Turn on' }}
+                        </button>
+                      }
+                    }
+                  </td>
                   @if (writable()) {
                     <td class="row-actions">
                       <button
                         type="button"
                         class="btn btn--sm btn--primary"
-                        [disabled]="saving() || !changed(radio)"
+                        [disabled]="saving() || !changed(radio) || !draftFor(radio).width"
                         (click)="save(radio)"
                       >
                         {{ saving() ? 'Saving…' : 'Save' }}
@@ -134,20 +194,25 @@ export class RouterWifiRadios {
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
   /** Unsaved choices per band. */
-  private readonly drafts = signal<
-    Partial<Record<Band, { channel: 'auto' | number; power: number }>>
-  >({});
+  private readonly drafts = signal<Partial<Record<Band, Draft>>>({});
+  protected readonly widthLabels = WIDTH_LABELS;
   protected readonly writable = computed(
     () => this.radios.hasValue() && this.radios.value().writesEnabled,
   );
 
-  private draftFor(radio: WifiRadio) {
+  protected draftFor(radio: WifiRadio): Draft {
     return (
       this.drafts()[radio.band] ?? {
-        channel: radio.autoChannel ? ('auto' as const) : radio.channel,
+        channel: radio.autoChannel ? 'auto' : radio.channel,
         power: radio.power,
+        width: radio.width,
       }
     );
+  }
+
+  protected draftWidth(band: Band, width: Width) {
+    const radio = this.radios.value()!.radios.find((r) => r.band === band)!;
+    this.drafts.update((d) => ({ ...d, [band]: { ...this.draftFor(radio), width } }));
   }
 
   protected draftChannel(band: Band, value: string) {
@@ -167,7 +232,7 @@ export class RouterWifiRadios {
     const d = this.drafts()[radio.band];
     if (!d) return false;
     const channel = radio.autoChannel ? 'auto' : radio.channel;
-    return d.channel !== channel || d.power !== radio.power;
+    return d.channel !== channel || d.power !== radio.power || d.width !== radio.width;
   }
 
   protected async save(radio: WifiRadio) {
@@ -175,7 +240,8 @@ export class RouterWifiRadios {
     const ok = await this.confirm.ask({
       title: `Change the ${radio.band} radio?`,
       message:
-        `Channel ${draft.channel === 'auto' ? 'automatic' : draft.channel}, signal strength ${draft.power}%. ` +
+        `Channel ${draft.channel === 'auto' ? 'automatic' : draft.channel}, signal strength ${draft.power}%, ` +
+        `width ${draft.width ? WIDTH_LABELS[draft.width] : ''}. ` +
         `The ${radio.band} radio restarts: devices on it drop for a moment and reconnect. Wired devices are not affected.`,
       confirmLabel: 'Save on the router',
       danger: true,
@@ -187,6 +253,31 @@ export class RouterWifiRadios {
       next: () => {
         this.saving.set(false);
         this.drafts.update((d) => ({ ...d, [radio.band]: undefined }));
+        this.radios.reload();
+      },
+      error: (err: unknown) => {
+        this.saving.set(false);
+        this.error.set(toApiError(err).message);
+        this.radios.reload();
+      },
+    });
+  }
+
+  protected async setWps(radio: WifiRadio, enabled: boolean) {
+    const ok = await this.confirm.ask({
+      title: `Turn WPS ${enabled ? 'on' : 'off'} for ${radio.band}?`,
+      message: enabled
+        ? 'Anyone near the router can then join this network by pressing the WPS button, without the password.'
+        : 'Devices can no longer join with the WPS button; they use the Wi-Fi password. Connected devices stay connected.',
+      confirmLabel: enabled ? 'Turn on' : 'Turn off',
+      danger: enabled,
+    });
+    if (!ok) return;
+    this.error.set(null);
+    this.saving.set(true);
+    this.http.put(apiUrl('/router/wifi-wps'), { band: radio.band, enabled }).subscribe({
+      next: () => {
+        this.saving.set(false);
         this.radios.reload();
       },
       error: (err: unknown) => {
