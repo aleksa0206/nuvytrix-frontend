@@ -17,6 +17,7 @@ import {
   type DeviceType,
 } from '../../core/models/device.model';
 import { AvailabilityStrip } from '../../shared/ui/availability-strip';
+import { DevicePorts } from './device-ports';
 import { DevicesService } from '../../core/services/devices.service';
 import { LoadError, Loading } from '../../shared/ui/feedback';
 import { PageHeader } from '../../shared/ui/page-header';
@@ -31,6 +32,7 @@ import { DateTimePipe, RelativePipe } from '../../shared/util/format.pipes';
     RouterLink,
     PageHeader,
     AvailabilityStrip,
+    DevicePorts,
     StateBadge,
     LoadError,
     Loading,
