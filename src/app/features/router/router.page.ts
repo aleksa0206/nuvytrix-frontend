@@ -90,6 +90,17 @@ export class RouterPage {
         }))
       : [],
   );
+  /** Internet traffic in Mbit/s, from the router's fiber (GPON) counters. */
+  private mbps(field: 'wanDownloadBps' | 'wanUploadBps') {
+    return this.history.hasValue()
+      ? this.history.value().points.map((p) => ({
+          at: p.at,
+          value: p[field] === null ? null : Math.round(p[field] / 10_000) / 100,
+        }))
+      : [];
+  }
+  protected readonly wanDownloadPoints = computed(() => this.mbps('wanDownloadBps'));
+  protected readonly wanUploadPoints = computed(() => this.mbps('wanUploadBps'));
   protected readonly cpuPoints = computed(() =>
     this.history.hasValue()
       ? this.history.value().points.map((p) => ({ at: p.at, value: p.cpuPercent }))

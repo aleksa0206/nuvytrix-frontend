@@ -187,6 +187,34 @@
           </section>
           <section class="panel">
             <header class="panel__header">
+              <h2>Internet traffic</h2>
+              <span class="panel__meta">Mbit/s on the fiber line, average between reads</span>
+            </header>
+            <div class="panel__body">
+              @if (wanDownloadPoints().length > 2) {
+                <p class="field__hint">Download</p>
+                <app-line-chart
+                  [points]="wanDownloadPoints()"
+                  [bucketMinutes]="(s.pollSeconds / 60) * 1.5"
+                  unit=" Mb"
+                  [height]="140"
+                  label="Internet download"
+                />
+                <p class="field__hint">Upload</p>
+                <app-line-chart
+                  [points]="wanUploadPoints()"
+                  [bucketMinutes]="(s.pollSeconds / 60) * 1.5"
+                  unit=" Mb"
+                  [height]="100"
+                  label="Internet upload"
+                />
+              } @else {
+                <app-empty-state title="Collecting samples" />
+              }
+            </div>
+          </section>
+          <section class="panel">
+            <header class="panel__header">
               <h2>Traffic to devices</h2>
               <span class="panel__meta">Mbit/s sent to LAN and Wi-Fi, average between reads</span>
             </header>
