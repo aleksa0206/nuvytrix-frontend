@@ -82,6 +82,8 @@ export type DnsStatus =
 export interface NamedCount {
   name: string;
   count: number;
+  /** Clients only: the device's name in Nuvytrix. */
+  deviceName?: string | null;
 }
 
 export interface DnsStats {
@@ -95,6 +97,7 @@ export interface DnsStats {
   topQueriedDomains: NamedCount[];
   topBlockedDomains: NamedCount[];
   topClients: NamedCount[];
+  upstreams?: { upstream: string; responses: number; avgMs: number | null }[];
 }
 
 export interface Overview {

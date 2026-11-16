@@ -4,11 +4,12 @@ import { EmptyState, LoadError, Loading } from '../../shared/ui/feedback';
 import { PageHeader } from '../../shared/ui/page-header';
 import { StateBadge } from '../../shared/ui/state-badge';
 import { NumberPipe } from '../../shared/util/format.pipes';
+import { DnsTools } from './dns-tools';
 
 @Component({
   selector: 'app-dns-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageHeader, StateBadge, EmptyState, LoadError, Loading, NumberPipe],
+  imports: [PageHeader, StateBadge, EmptyState, LoadError, Loading, NumberPipe, DnsTools],
   templateUrl: './dns.page.html',
   styles: `
     .figures {

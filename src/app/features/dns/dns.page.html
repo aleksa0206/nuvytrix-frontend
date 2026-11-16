@@ -104,7 +104,14 @@
                   <tbody>
                     @for (item of list.items; track item.name) {
                       <tr>
-                        <td class="mono">{{ item.name }}</td>
+                        <td>
+                          @if (item.deviceName) {
+                            {{ item.deviceName }}
+                            <small class="text-tertiary mono">{{ item.name }}</small>
+                          } @else {
+                            <span class="mono">{{ item.name }}</span>
+                          }
+                        </td>
                         <td class="align-right num">{{ item.count | num }}</td>
                       </tr>
                     }
@@ -114,6 +121,23 @@
             </section>
           }
         </div>
+        @if (st.upstreams?.length) {
+          <section class="panel">
+            <header class="panel__header"><h2>Upstream servers</h2></header>
+            <table class="table table--compact">
+              <tbody>
+                @for (u of st.upstreams; track u.upstream) {
+                  <tr>
+                    <td class="mono">{{ u.upstream }}</td>
+                    <td class="num">{{ u.responses | num }} answers</td>
+                    <td class="num mono">{{ u.avgMs !== null ? u.avgMs + ' ms' : '—' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </section>
+        }
+        <app-dns-tools />
       }
     }
   }
