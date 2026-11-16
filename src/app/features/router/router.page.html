@@ -298,6 +298,10 @@
         </div>
       }
 
+      @if (tab() === 'overview') {
+        <app-router-led />
+      }
+
       @if (tab() === 'clients') {
         <section class="panel">
           <header class="panel__header">
