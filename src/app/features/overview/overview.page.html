@@ -50,7 +50,9 @@
         <a class="health__cell" routerLink="/router">
           <span class="health__name">Fiber</span>
           <app-state-badge [state]="rn.fiberState" />
-          <span class="health__value mono">{{ rn.rx !== null ? rn.rx + ' dBm' : '—' }}</span>
+          <span class="health__value mono"
+            >{{ rn.rx ?? '—' }}<small>{{ rn.rx !== null ? ' dBm' : '' }}</small></span
+          >
           <span class="health__note">received signal</span>
         </a>
         <a class="health__cell" routerLink="/router">
