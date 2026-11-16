@@ -340,3 +340,41 @@ export interface WifiNetworkInput {
   security: 'wpa2' | 'wpa-wpa2';
   password?: string;
 }
+
+export type ParentalMode = 'block' | 'allow';
+
+export interface ParentalPeriod {
+  index: number;
+  start: string;
+  end: string;
+  /** 1 = Monday … 7 = Sunday. */
+  days: number[];
+}
+
+export interface ParentalTemplate {
+  index: number;
+  name: string;
+  timeEnabled: boolean;
+  timeMode: ParentalMode;
+  urlEnabled: boolean;
+  urlMode: ParentalMode;
+  periods: ParentalPeriod[];
+  urls: { index: number; url: string }[];
+}
+
+export interface ParentalDevice {
+  index: number;
+  mac: string;
+  description: string;
+  template: number;
+}
+
+export interface RouterParentalState {
+  writesEnabled: boolean;
+  templates: ParentalTemplate[];
+  devices: ParentalDevice[];
+}
+
+export type ParentalTemplateUpdate = Partial<
+  Pick<ParentalTemplate, 'name' | 'timeEnabled' | 'timeMode' | 'urlEnabled' | 'urlMode'>
+>;

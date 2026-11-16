@@ -1,0 +1,383 @@
+@if (parental.isLoading() && !parental.hasValue()) {
+  <app-loading />
+}
+@if (parental.error(); as e) {
+  <app-load-error [error]="e" (retry)="parental.reload()" />
+}
+@if (error()) {
+  <p class="notice notice--error" role="alert">{{ error() }}</p>
+}
+
+@if (parental.hasValue()) {
+  @let p = parental.value();
+  @if (!p.writesEnabled) {
+    <p class="notice notice--info">
+      Changing router settings is turned off on the server (ROUTER_WRITES_ENABLED). Parental control
+      is shown read-only.
+    </p>
+  }
+
+  <section class="panel">
+    <header class="panel__header">
+      <h2>Devices under parental control</h2>
+      <span class="panel__meta">each device follows one template</span>
+    </header>
+    @if (writable()) {
+      <div class="panel__body filter-state">
+        <span class="spacer"></span>
+        <button
+          type="button"
+          class="btn btn--primary"
+          [disabled]="saving()"
+          (click)="startAddDevice()"
+        >
+          Add device
+        </button>
+      </div>
+    }
+    @if (addingDevice()) {
+      <form class="panel__body stack" [formGroup]="deviceForm" (ngSubmit)="addDevice()" novalidate>
+        <div class="form-grid">
+          <div class="field">
+            <label for="pc-device">Device</label>
+            <select id="pc-device" class="select" #pick (change)="pickDevice(pick.value)">
+              <option value="">Choose a device…</option>
+              @for (c of devices(); track c.macAddress) {
+                <option [value]="c.macAddress">
+                  {{ c.customName ?? c.hostName ?? c.macAddress }} — {{ c.ipAddress ?? 'offline' }}
+                </option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label for="pc-mac">MAC address</label>
+            <input
+              id="pc-mac"
+              class="input mono"
+              formControlName="mac"
+              placeholder="aa:bb:cc:dd:ee:ff"
+            />
+          </div>
+          <div class="field">
+            <label for="pc-desc">Description (optional)</label>
+            <input id="pc-desc" class="input" formControlName="description" maxlength="32" />
+          </div>
+          <div class="field">
+            <label for="pc-template">Template</label>
+            <select id="pc-template" class="select" formControlName="template">
+              @for (t of p.templates; track t.index) {
+                <option [ngValue]="t.index">{{ t.name }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button type="submit" class="btn btn--primary" [disabled]="saving()">
+            Save on the router
+          </button>
+          <button type="button" class="btn" (click)="addingDevice.set(false)">Cancel</button>
+        </div>
+      </form>
+    }
+    @if (p.devices.length === 0) {
+      <app-empty-state title="No device is under parental control" />
+    } @else {
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Device</th>
+              <th>Description</th>
+              <th>Template</th>
+              @if (writable()) {
+                <th><span class="visually-hidden">Actions</span></th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (d of p.devices; track d.index) {
+              <tr>
+                <td>
+                  {{ deviceName(d.mac) }} <span class="mono field__hint">{{ d.mac }}</span>
+                </td>
+                <td>{{ d.description || '—' }}</td>
+                <td>
+                  @if (writable()) {
+                    <select
+                      class="select"
+                      [attr.aria-label]="'Template for ' + deviceName(d.mac)"
+                      [value]="d.template"
+                      [disabled]="saving()"
+                      #move
+                      (change)="moveDevice(d, +move.value)"
+                    >
+                      @for (t of p.templates; track t.index) {
+                        <option [value]="t.index" [selected]="t.index === d.template">
+                          {{ t.name }}
+                        </option>
+                      }
+                    </select>
+                  } @else {
+                    {{ templateLabel(d.template) }}
+                  }
+                </td>
+                @if (writable()) {
+                  <td class="row-actions">
+                    <button
+                      type="button"
+                      class="btn btn--sm btn--danger"
+                      [disabled]="saving()"
+                      (click)="removeDevice(d)"
+                    >
+                      Remove
+                    </button>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+
+  @for (t of p.templates; track t.index) {
+    <section class="panel">
+      <header class="panel__header">
+        <h2>Template “{{ t.name }}”</h2>
+        <span class="panel__meta">{{ boundTo(t).length }} device(s)</span>
+      </header>
+
+      <div class="panel__body filter-state">
+        <app-state-badge
+          [state]="t.timeEnabled ? 'operational' : 'disabled'"
+          [label]="t.timeEnabled ? 'Time limits on' : 'Time limits off'"
+        />
+        <span>{{ modeText('time', t.timeMode) }}</span>
+        @if (writable()) {
+          <span class="spacer"></span>
+          <button
+            type="button"
+            class="btn btn--sm"
+            [disabled]="saving()"
+            (click)="
+              setTemplate(
+                t,
+                { timeMode: t.timeMode === 'allow' ? 'block' : 'allow' },
+                'The meaning of the times switches: ' +
+                  modeText('time', t.timeMode === 'allow' ? 'block' : 'allow') +
+                  '.'
+              )
+            "
+          >
+            Switch to “{{ modeText('time', t.timeMode === 'allow' ? 'block' : 'allow') }}”
+          </button>
+          <button
+            type="button"
+            class="btn btn--sm"
+            [disabled]="saving()"
+            (click)="
+              setTemplate(
+                t,
+                { timeEnabled: !t.timeEnabled },
+                t.timeEnabled ? 'Time limits stop applying.' : 'Time limits start applying.'
+              )
+            "
+          >
+            {{ t.timeEnabled ? 'Turn off' : 'Turn on' }}
+          </button>
+        }
+      </div>
+      @if (t.timeEnabled && t.timeMode === 'allow' && t.periods.length === 0) {
+        <p class="panel__body notice notice--warning">
+          No times are listed, so bound devices have no internet at all.
+        </p>
+      }
+      <div class="panel__body">
+        @for (period of t.periods; track period.index) {
+          <div class="filter-state">
+            <span class="mono">{{ period.start }}–{{ period.end }}</span>
+            <span>{{ dayLabels(period.days) }}</span>
+            @if (writable()) {
+              <span class="spacer"></span>
+              <button
+                type="button"
+                class="btn btn--sm btn--danger"
+                [disabled]="saving()"
+                (click)="deletePeriod(t, period.index)"
+              >
+                Delete
+              </button>
+            }
+          </div>
+        } @empty {
+          <p class="field__hint">No times.</p>
+        }
+        @if (writable()) {
+          @if (periodFor() === t.index) {
+            <form class="stack" [formGroup]="periodForm" (ngSubmit)="addPeriod(t)" novalidate>
+              <div class="form-grid">
+                <div class="field">
+                  <label [for]="'pc-start-' + t.index">From</label>
+                  <input
+                    [id]="'pc-start-' + t.index"
+                    class="input"
+                    type="time"
+                    formControlName="start"
+                  />
+                </div>
+                <div class="field">
+                  <label [for]="'pc-end-' + t.index">To</label>
+                  <input
+                    [id]="'pc-end-' + t.index"
+                    class="input"
+                    type="time"
+                    formControlName="end"
+                  />
+                </div>
+              </div>
+              <div class="toolbar" role="group" aria-label="Days">
+                @for (d of days; track d.value) {
+                  <label class="checkbox">
+                    <input
+                      type="checkbox"
+                      [checked]="periodForm.controls.days.value.includes(d.value)"
+                      (change)="toggleDay(d.value)"
+                    />
+                    {{ d.label }}
+                  </label>
+                }
+              </div>
+              <div class="toolbar">
+                <button type="submit" class="btn btn--primary btn--sm" [disabled]="saving()">
+                  Add time
+                </button>
+                <button type="button" class="btn btn--sm" (click)="periodFor.set(null)">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          } @else {
+            <button type="button" class="btn btn--sm" (click)="periodFor.set(t.index)">
+              Add time
+            </button>
+          }
+        }
+      </div>
+
+      <div class="panel__body filter-state">
+        <app-state-badge
+          [state]="t.urlEnabled ? 'operational' : 'disabled'"
+          [label]="t.urlEnabled ? 'Site filter on' : 'Site filter off'"
+        />
+        <span>{{ modeText('url', t.urlMode) }}</span>
+        @if (writable()) {
+          <span class="spacer"></span>
+          <button
+            type="button"
+            class="btn btn--sm"
+            [disabled]="saving()"
+            (click)="
+              setTemplate(
+                t,
+                { urlMode: t.urlMode === 'allow' ? 'block' : 'allow' },
+                'The list switches to: ' +
+                  modeText('url', t.urlMode === 'allow' ? 'block' : 'allow') +
+                  '.'
+              )
+            "
+          >
+            Switch to “{{ modeText('url', t.urlMode === 'allow' ? 'block' : 'allow') }}”
+          </button>
+          <button
+            type="button"
+            class="btn btn--sm"
+            [disabled]="saving()"
+            (click)="
+              setTemplate(
+                t,
+                { urlEnabled: !t.urlEnabled },
+                t.urlEnabled
+                  ? 'The site filter stops applying.'
+                  : 'The site filter starts applying.'
+              )
+            "
+          >
+            {{ t.urlEnabled ? 'Turn off' : 'Turn on' }}
+          </button>
+        }
+      </div>
+      <div class="panel__body">
+        @for (u of t.urls; track u.index) {
+          <div class="filter-state">
+            <span class="mono">{{ u.url }}</span>
+            @if (writable()) {
+              <span class="spacer"></span>
+              <button
+                type="button"
+                class="btn btn--sm btn--danger"
+                [disabled]="saving()"
+                (click)="deleteUrl(t, u.index)"
+              >
+                Delete
+              </button>
+            }
+          </div>
+        } @empty {
+          <p class="field__hint">No sites.</p>
+        }
+        @if (writable()) {
+          @if (urlFor() === t.index) {
+            <form class="toolbar" (ngSubmit)="addUrl(t)" novalidate>
+              <label class="visually-hidden" [for]="'pc-url-' + t.index">Site</label>
+              <input
+                [id]="'pc-url-' + t.index"
+                class="input mono"
+                [formControl]="urlControl"
+                placeholder="example.com"
+                maxlength="64"
+              />
+              <button type="submit" class="btn btn--primary btn--sm" [disabled]="saving()">
+                Add site
+              </button>
+              <button type="button" class="btn btn--sm" (click)="urlFor.set(null)">Cancel</button>
+            </form>
+          } @else {
+            <button type="button" class="btn btn--sm" (click)="urlFor.set(t.index)">
+              Add site
+            </button>
+          }
+        }
+      </div>
+
+      @if (writable() && boundTo(t).length === 0) {
+        <div class="panel__body toolbar">
+          <button
+            type="button"
+            class="btn btn--sm btn--danger"
+            [disabled]="saving()"
+            (click)="deleteTemplate(t)"
+          >
+            Delete template
+          </button>
+        </div>
+      }
+    </section>
+  }
+
+  @if (writable()) {
+    <section class="panel">
+      <form class="panel__body toolbar" (ngSubmit)="addTemplate()" novalidate>
+        <label for="pc-new-template">New template</label>
+        <input
+          id="pc-new-template"
+          class="input"
+          [formControl]="templateName"
+          maxlength="32"
+          placeholder="e.g. Kids"
+        />
+        <button type="submit" class="btn btn--primary" [disabled]="saving()">Add template</button>
+      </form>
+    </section>
+  }
+}

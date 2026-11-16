@@ -27,6 +27,9 @@ import type {
   RouterDmzState,
   RouterPortTriggerState,
   RouterWifiState,
+  ParentalDevice,
+  ParentalTemplateUpdate,
+  RouterParentalState,
   WifiNetworkConfig,
   WifiNetworkInput,
   RouterStatus,
@@ -196,6 +199,50 @@ export class RouterService {
 
   deleteWifiNetwork(index: number) {
     return this.http.delete<WifiNetworkConfig[]>(apiUrl(`/router/wifi/${index}`));
+  }
+
+  parentalResource() {
+    return httpResource<RouterParentalState>(() => apiUrl('/router/parental'));
+  }
+
+  addParentalTemplate(name: string) {
+    return this.http.post(apiUrl('/router/parental/templates'), { name });
+  }
+
+  updateParentalTemplate(template: number, change: ParentalTemplateUpdate) {
+    return this.http.patch(apiUrl(`/router/parental/templates/${template}`), change);
+  }
+
+  deleteParentalTemplate(template: number) {
+    return this.http.delete(apiUrl(`/router/parental/templates/${template}`));
+  }
+
+  addParentalPeriod(template: number, period: { start: string; end: string; days: number[] }) {
+    return this.http.post(apiUrl(`/router/parental/templates/${template}/periods`), period);
+  }
+
+  deleteParentalPeriod(template: number, period: number) {
+    return this.http.delete(apiUrl(`/router/parental/templates/${template}/periods/${period}`));
+  }
+
+  addParentalUrl(template: number, url: string) {
+    return this.http.post(apiUrl(`/router/parental/templates/${template}/urls`), { url });
+  }
+
+  deleteParentalUrl(template: number, item: number) {
+    return this.http.delete(apiUrl(`/router/parental/templates/${template}/urls/${item}`));
+  }
+
+  addParentalDevice(device: Omit<ParentalDevice, 'index'>) {
+    return this.http.post(apiUrl('/router/parental/devices'), device);
+  }
+
+  updateParentalDevice(index: number, device: Omit<ParentalDevice, 'index'>) {
+    return this.http.put(apiUrl(`/router/parental/devices/${index}`), device);
+  }
+
+  deleteParentalDevice(index: number) {
+    return this.http.delete(apiUrl(`/router/parental/devices/${index}`));
   }
 
   refresh() {

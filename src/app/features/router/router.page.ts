@@ -9,6 +9,7 @@ import { RouterMacFilter } from './router-mac-filter';
 import { RouterForwarding } from './router-forwarding';
 import { RouterPortMapping } from './router-port-mapping';
 import { RouterWifi } from './router-wifi';
+import { RouterParental } from './router-parental';
 import { EmptyState, LoadError, Loading } from '../../shared/ui/feedback';
 import { LineChart } from '../../shared/ui/line-chart';
 import { PageHeader } from '../../shared/ui/page-header';
@@ -16,7 +17,7 @@ import { StateBadge } from '../../shared/ui/state-badge';
 import { formatBytes, formatDuration } from '../../shared/util/format';
 import { RelativePipe } from '../../shared/util/format.pipes';
 
-type Tab = 'overview' | 'clients' | 'wifi' | 'dhcp' | 'firewall' | 'mac' | 'ports';
+type Tab = 'overview' | 'clients' | 'wifi' | 'dhcp' | 'firewall' | 'mac' | 'ports' | 'parental';
 
 @Component({
   selector: 'app-router-page',
@@ -36,6 +37,7 @@ type Tab = 'overview' | 'clients' | 'wifi' | 'dhcp' | 'firewall' | 'mac' | 'port
     RouterPortMapping,
     RouterForwarding,
     RouterWifi,
+    RouterParental,
   ],
   templateUrl: './router.page.html',
   styleUrl: './router.page.scss',
