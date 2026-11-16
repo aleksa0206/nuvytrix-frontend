@@ -8,6 +8,11 @@ import type {
   RouterClient,
   RouterHistoryPoint,
   RouterFirewallState,
+  DhcpReservation,
+  DhcpReservationInput,
+  DhcpServer,
+  DhcpServerInput,
+  RouterDhcpState,
   RouterStatus,
 } from '../models/router.model';
 import { apiUrl, toParams } from '../api/http';
@@ -57,6 +62,32 @@ export class RouterService {
 
   changeFirewall(change: { enabled?: boolean; mode?: 'blacklist' }) {
     return this.http.patch<IpFilterState>(apiUrl('/router/firewall'), change);
+  }
+
+  dhcpResource() {
+    return httpResource<RouterDhcpState>(() => apiUrl('/router/dhcp'));
+  }
+
+  changeDhcpServer(input: DhcpServerInput) {
+    return this.http.patch<DhcpServer>(apiUrl('/router/dhcp'), input);
+  }
+
+  addDhcpReservation(input: DhcpReservationInput) {
+    return this.http.post<{ reservation: DhcpReservation }>(
+      apiUrl('/router/dhcp/reservations'),
+      input,
+    );
+  }
+
+  updateDhcpReservation(index: number, input: DhcpReservationInput) {
+    return this.http.put<{ reservation: DhcpReservation }>(
+      apiUrl(`/router/dhcp/reservations/${index}`),
+      input,
+    );
+  }
+
+  deleteDhcpReservation(index: number) {
+    return this.http.delete<DhcpReservation[]>(apiUrl(`/router/dhcp/reservations/${index}`));
   }
 
   refresh() {

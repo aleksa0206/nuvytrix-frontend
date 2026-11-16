@@ -168,3 +168,39 @@ export interface RouterHistoryPoint {
   wifiClients: number | null;
   devicesOnline: number | null;
 }
+
+export interface DhcpServer {
+  enabled: boolean;
+  lanIp: string;
+  subnetMask: string;
+  startIp: string;
+  endIp: string;
+  leaseSeconds: number;
+  /** Empty: devices use the router itself as DNS server. */
+  dnsServers: string[];
+}
+
+export interface DhcpReservation {
+  /** TR-098 path; its last number is the index used by the API. */
+  domain: string;
+  enabled: boolean;
+  ip: string;
+  mac: string;
+}
+
+export interface RouterDhcpState {
+  writesEnabled: boolean;
+  server: DhcpServer;
+  reservations: DhcpReservation[];
+}
+
+export interface DhcpServerInput {
+  startIp: string;
+  endIp: string;
+  leaseSeconds: number;
+}
+
+export interface DhcpReservationInput {
+  mac: string;
+  ip: string;
+}

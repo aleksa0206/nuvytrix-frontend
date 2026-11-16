@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { toApiError } from '../../core/api/api-error';
 import { pollWhileVisible } from '../../core/polling';
 import { RouterService } from '../../core/services/router.service';
+import { RouterDhcp } from './router-dhcp';
 import { RouterFirewall } from './router-firewall';
 import { EmptyState, LoadError, Loading } from '../../shared/ui/feedback';
 import { LineChart } from '../../shared/ui/line-chart';
@@ -11,7 +12,7 @@ import { StateBadge } from '../../shared/ui/state-badge';
 import { formatBytes, formatDuration } from '../../shared/util/format';
 import { RelativePipe } from '../../shared/util/format.pipes';
 
-type Tab = 'overview' | 'clients' | 'firewall';
+type Tab = 'overview' | 'clients' | 'dhcp' | 'firewall';
 
 @Component({
   selector: 'app-router-page',
@@ -26,6 +27,7 @@ type Tab = 'overview' | 'clients' | 'firewall';
     LineChart,
     RelativePipe,
     RouterFirewall,
+    RouterDhcp,
   ],
   templateUrl: './router.page.html',
   styleUrl: './router.page.scss',

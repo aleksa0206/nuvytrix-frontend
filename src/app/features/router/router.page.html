@@ -69,6 +69,14 @@
         <button
           type="button"
           role="tab"
+          [attr.aria-pressed]="tab() === 'dhcp'"
+          (click)="tab.set('dhcp')"
+        >
+          DHCP
+        </button>
+        <button
+          type="button"
+          role="tab"
           [attr.aria-pressed]="tab() === 'firewall'"
           (click)="tab.set('firewall')"
         >
@@ -341,6 +349,10 @@
             <app-loading />
           }
         </section>
+      }
+
+      @if (tab() === 'dhcp') {
+        <app-router-dhcp />
       }
 
       @if (tab() === 'firewall') {

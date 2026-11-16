@@ -1,0 +1,239 @@
+<section class="panel">
+  <header class="panel__header">
+    <h2>DHCP on the router</h2>
+    <span class="panel__meta">read from the router now; changes are saved on the router</span>
+  </header>
+
+  @if (dhcp.isLoading() && !dhcp.hasValue()) {
+    <app-loading />
+  }
+  @if (dhcp.error(); as error) {
+    <app-load-error [error]="error" (retry)="dhcp.reload()" />
+  }
+
+  @if (dhcp.hasValue()) {
+    @let d = dhcp.value();
+    <div class="panel__body filter-state">
+      <app-state-badge
+        [state]="d.server.enabled ? 'operational' : 'disabled'"
+        [label]="d.server.enabled ? 'DHCP server on' : 'DHCP server off'"
+      />
+      <span
+        >Router <strong class="mono">{{ d.server.lanIp }}/{{ d.server.subnetMask }}</strong></span
+      >
+      <span
+        >Pool <strong class="mono">{{ d.server.startIp }} – {{ d.server.endIp }}</strong></span
+      >
+      <span
+        >Lease <strong>{{ formatDuration(d.server.leaseSeconds) }}</strong></span
+      >
+      <span
+        >DNS for devices
+        <strong class="mono">{{
+          d.server.dnsServers.length ? d.server.dnsServers.join(', ') : 'the router'
+        }}</strong></span
+      >
+      @if (writable()) {
+        <span class="spacer"></span>
+        <button type="button" class="btn" [disabled]="saving()" (click)="startPoolEdit()">
+          Change pool
+        </button>
+        <button
+          type="button"
+          class="btn btn--primary"
+          [disabled]="saving()"
+          (click)="startCreate()"
+        >
+          New reservation
+        </button>
+      }
+    </div>
+
+    @if (!d.writesEnabled) {
+      <p class="panel__body notice notice--info">
+        Changing router settings is turned off on the server (ROUTER_WRITES_ENABLED). DHCP settings
+        are shown read-only.
+      </p>
+    }
+    @if (actionError()) {
+      <p class="panel__body notice notice--error" role="alert">{{ actionError() }}</p>
+    }
+
+    @if (editingPool()) {
+      <form class="panel__body stack" [formGroup]="poolForm" (ngSubmit)="savePool()" novalidate>
+        <h3>DHCP pool</h3>
+        <p class="field__hint">
+          The pool must stay inside {{ d.server.lanIp }}/{{ d.server.subnetMask }}, must not include
+          the router, and must keep every reservation and the server's own address.
+        </p>
+        <div class="form-grid">
+          <div class="field">
+            <label for="dhcp-start">First address</label>
+            <input id="dhcp-start" class="input mono" formControlName="startIp" />
+            @if (fieldError('startIp'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <div class="field">
+            <label for="dhcp-end">Last address</label>
+            <input id="dhcp-end" class="input mono" formControlName="endIp" />
+            @if (fieldError('endIp'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <div class="field">
+            <label for="dhcp-lease">Lease time</label>
+            <input
+              id="dhcp-lease"
+              class="input"
+              type="number"
+              min="1"
+              step="1"
+              formControlName="lease"
+            />
+            @if (fieldError('leaseSeconds'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <div class="field">
+            <label for="dhcp-unit">Unit</label>
+            <select id="dhcp-unit" class="select" formControlName="unit">
+              @for (u of units; track u.seconds) {
+                <option [ngValue]="u.seconds">{{ u.label }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        @if (formError()) {
+          <p class="notice notice--error" role="alert">{{ formError() }}</p>
+        }
+        <div class="toolbar">
+          <button type="submit" class="btn btn--primary" [disabled]="saving()">
+            {{ saving() ? 'Saving on the router…' : 'Save on the router' }}
+          </button>
+          <button type="button" class="btn" [disabled]="saving()" (click)="editingPool.set(false)">
+            Cancel
+          </button>
+        </div>
+      </form>
+    }
+
+    @if (editing()) {
+      <form
+        class="panel__body stack"
+        [formGroup]="reservationForm"
+        (ngSubmit)="saveReservation()"
+        novalidate
+      >
+        <h3>{{ editing() === 'new' ? 'New reservation' : 'Edit reservation' }}</h3>
+        <div class="form-grid">
+          @if (devices().length) {
+            <div class="field">
+              <label for="dhcp-device">Device (fills in MAC and address)</label>
+              <select id="dhcp-device" class="select" #device (change)="pickDevice(device.value)">
+                <option value="">Choose a device…</option>
+                @for (c of devices(); track c.macAddress) {
+                  <option [value]="c.macAddress">
+                    {{ c.customName ?? c.hostName ?? c.macAddress }} —
+                    {{ c.ipAddress ?? 'no address' }}
+                  </option>
+                }
+              </select>
+            </div>
+          }
+          <div class="field">
+            <label for="dhcp-mac">MAC address</label>
+            <input
+              id="dhcp-mac"
+              class="input mono"
+              formControlName="mac"
+              placeholder="aa:bb:cc:dd:ee:ff"
+              [attr.aria-invalid]="
+                (reservationForm.controls.mac.touched && reservationForm.controls.mac.invalid) ||
+                !!fieldError('mac')
+              "
+            />
+            @if (fieldError('mac'); as message) {
+              <span class="field__error">{{ message }}</span>
+            } @else if (
+              reservationForm.controls.mac.touched && reservationForm.controls.mac.invalid
+            ) {
+              <span class="field__error">Use a MAC address like aa:bb:cc:dd:ee:ff</span>
+            }
+          </div>
+          <div class="field">
+            <label for="dhcp-ip">Reserved address</label>
+            <input
+              id="dhcp-ip"
+              class="input mono"
+              formControlName="ip"
+              placeholder="192.168.100.50"
+            />
+            @if (fieldError('ip'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+        </div>
+        @if (formError()) {
+          <p class="notice notice--error" role="alert">{{ formError() }}</p>
+        }
+        <div class="toolbar">
+          <button type="submit" class="btn btn--primary" [disabled]="saving()">
+            {{ saving() ? 'Saving on the router…' : 'Save on the router' }}
+          </button>
+          <button type="button" class="btn" [disabled]="saving()" (click)="editing.set(null)">
+            Cancel
+          </button>
+        </div>
+      </form>
+    }
+
+    @if (d.reservations.length === 0) {
+      <app-empty-state title="No address reservations on the router" />
+    } @else {
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Device</th>
+              <th>MAC address</th>
+              <th>Reserved address</th>
+              @if (writable()) {
+                <th><span class="visually-hidden">Actions</span></th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of d.reservations; track r.domain) {
+              <tr>
+                <td>{{ deviceName(r.mac) ?? '—' }}</td>
+                <td class="mono">{{ r.mac }}</td>
+                <td class="mono">{{ r.ip }}</td>
+                @if (writable()) {
+                  <td class="row-actions">
+                    <button
+                      type="button"
+                      class="btn btn--sm"
+                      [disabled]="saving()"
+                      (click)="startEdit(r)"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn--sm btn--danger"
+                      [disabled]="saving()"
+                      (click)="remove(r)"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</section>
