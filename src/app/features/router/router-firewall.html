@@ -229,7 +229,8 @@
                     all
                   }
                 </td>
-                <td>{{ r.action || (f.mode === 'blacklist' ? 'deny' : 'allow') }}</td>
+                <!-- The router stores Accept on every rule; in blacklist mode a rule always blocks. -->
+                <td>{{ f.mode === 'blacklist' ? 'block' : r.action || 'allow' }}</td>
                 @if (writable()) {
                   <td class="row-actions">
                     <button

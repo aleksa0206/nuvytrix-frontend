@@ -1,7 +1,7 @@
 <div class="page">
   <app-page-header
     title="Router"
-    description="Huawei OptiXstar read by the server through the router's web interface and UPnP. Read only: nothing here changes the router."
+    description="Huawei OptiXstar, read and managed by the server through the router's web interface and UPnP. Changes are made only from Firewall &amp; UPnP, after confirmation."
   >
     @if (status.hasValue() && status.value().configured) {
       @let s = status.value();
@@ -32,7 +32,7 @@
       <section class="panel">
         <app-empty-state
           title="Router access is not configured"
-          description="Set ROUTER_USERNAME and ROUTER_PASSWORD (the router's web account) in the API environment. Nuvytrix only reads from the router."
+          description="Set ROUTER_USERNAME and ROUTER_PASSWORD (the router's web account) in the API environment."
         />
       </section>
     } @else if (!s.capturedAt) {
