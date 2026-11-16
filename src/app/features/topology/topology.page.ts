@@ -28,7 +28,7 @@ import { DevicePanel } from '../devices/device-panel';
       </app-page-header>
 
       <p class="notice notice--info">
-        Links between individual hosts and switch ports are not drawn: the TP-Link TL-SG1005D is
+        Links between individual hosts and switch ports are not drawn: the TP-Link TL-SG1008D is
         unmanaged and reports nothing, so that layer cannot be discovered. A managed switch with
         LLDP or SNMP would make it visible. Groups come from the device types you assign on the
         Devices page.
