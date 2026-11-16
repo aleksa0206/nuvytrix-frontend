@@ -328,7 +328,7 @@
         }
         @if (writable()) {
           @if (urlFor() === t.index) {
-            <form class="toolbar" (ngSubmit)="addUrl(t)" novalidate>
+            <form class="toolbar" (submit)="$event.preventDefault(); addUrl(t)" novalidate>
               <label class="visually-hidden" [for]="'pc-url-' + t.index">Site</label>
               <input
                 [id]="'pc-url-' + t.index"
@@ -367,7 +367,11 @@
 
   @if (writable()) {
     <section class="panel">
-      <form class="panel__body toolbar" (ngSubmit)="addTemplate()" novalidate>
+      <form
+        class="panel__body toolbar"
+        (submit)="$event.preventDefault(); addTemplate()"
+        novalidate
+      >
         <label for="pc-new-template">New template</label>
         <input
           id="pc-new-template"

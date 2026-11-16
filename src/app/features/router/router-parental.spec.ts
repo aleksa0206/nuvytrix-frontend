@@ -81,6 +81,29 @@ describe('RouterParental', () => {
     expect(post.request.body).toEqual({ start: '08:00', end: '20:00', days: [1, 2, 3, 4, 5, 6] });
   });
 
+  it('adds a template and a site from their one-field forms', async () => {
+    const { fixture, http, el, button } = await render(STATE);
+
+    const name = el.querySelector<HTMLInputElement>('#pc-new-template')!;
+    name.value = 'Teens';
+    name.dispatchEvent(new Event('input'));
+    name.closest('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+    http.expectOne((req) => req.url.endsWith('/router/parental/templates')).flush({});
+    http.expectOne((req) => req.url.endsWith('/router/parental')).flush(STATE);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    button('Add site')!.click();
+    fixture.detectChanges();
+    const site = el.querySelector<HTMLInputElement>('#pc-url-2')!;
+    site.value = 'example.org';
+    site.dispatchEvent(new Event('input'));
+    site.closest('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+
+    const post = http.expectOne((req) => req.url.endsWith('/router/parental/templates/2/urls'));
+    expect(post.request.body).toEqual({ url: 'example.org' });
+  });
+
   it('turns the time limits off after confirmation', async () => {
     const { fixture, http, el, ask } = await render(STATE);
 
