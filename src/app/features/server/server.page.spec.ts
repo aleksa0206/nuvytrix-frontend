@@ -30,11 +30,35 @@ describe('ServerPage', () => {
         db: { up: true, connections: 5, sizeBytes: 1e7, longestQuerySeconds: 0, error: null },
       });
     http.expectOne((r) => r.url.endsWith('/server/history')).flush({ hours: 24, points: [] });
+    http.expectOne((r) => r.url.endsWith('/docker/containers')).flush({
+      enabled: true,
+      checkedAt: new Date().toISOString(),
+      error: null,
+      containers: [
+        {
+          id: 'abc',
+          name: 'remly-web-1',
+          project: 'remly',
+          service: 'web',
+          image: 'remly-web',
+          state: 'exited',
+          health: null,
+          restartCount: 1,
+          startedAt: null,
+          uptimeSeconds: null,
+          cpuPercent: null,
+          memoryBytes: null,
+          memoryLimitBytes: null,
+          exitCode: 137,
+        },
+      ],
+    });
     await fixture.whenStable();
     fixture.detectChanges();
     const text = (fixture.nativeElement as HTMLElement).textContent!;
     expect(text).toContain('12.5');
     expect(text).toContain('On battery');
     expect(text).toContain('System');
+    expect(text).toContain('exited (137)');
   });
 });
