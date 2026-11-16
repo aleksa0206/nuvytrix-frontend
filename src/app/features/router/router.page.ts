@@ -14,6 +14,7 @@ import { RouterDnsHosts } from './router-dns-hosts';
 import { RouterDdns } from './router-ddns';
 import { RouterUpnpSwitch } from './router-upnp-switch';
 import { RouterDeviceAccess } from './router-device-access';
+import { RouterIpv6 } from './router-ipv6';
 import { RouterWifiSchedule } from './router-wifi-schedule';
 import { RouterWifiRadios } from './router-wifi-radios';
 import { RouterLed } from './router-led';
@@ -50,6 +51,7 @@ type Tab = 'overview' | 'clients' | 'wifi' | 'dhcp' | 'firewall' | 'mac' | 'port
     RouterDdns,
     RouterUpnpSwitch,
     RouterDeviceAccess,
+    RouterIpv6,
     RouterWifiSchedule,
     RouterWifiRadios,
     RouterLed,
