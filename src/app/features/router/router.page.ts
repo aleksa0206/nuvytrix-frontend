@@ -14,6 +14,7 @@ import { RouterDnsHosts } from './router-dns-hosts';
 import { RouterDdns } from './router-ddns';
 import { RouterUpnpSwitch } from './router-upnp-switch';
 import { RouterWifiSchedule } from './router-wifi-schedule';
+import { RouterWifiRadios } from './router-wifi-radios';
 import { EmptyState, LoadError, Loading } from '../../shared/ui/feedback';
 import { LineChart } from '../../shared/ui/line-chart';
 import { PageHeader } from '../../shared/ui/page-header';
@@ -46,6 +47,7 @@ type Tab = 'overview' | 'clients' | 'wifi' | 'dhcp' | 'firewall' | 'mac' | 'port
     RouterDdns,
     RouterUpnpSwitch,
     RouterWifiSchedule,
+    RouterWifiRadios,
   ],
   templateUrl: './router.page.html',
   styleUrl: './router.page.scss',
