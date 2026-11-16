@@ -13,6 +13,7 @@ import { RouterParental } from './router-parental';
 import { RouterDnsHosts } from './router-dns-hosts';
 import { RouterDdns } from './router-ddns';
 import { RouterUpnpSwitch } from './router-upnp-switch';
+import { RouterDeviceAccess } from './router-device-access';
 import { RouterWifiSchedule } from './router-wifi-schedule';
 import { RouterWifiRadios } from './router-wifi-radios';
 import { RouterLed } from './router-led';
@@ -48,6 +49,7 @@ type Tab = 'overview' | 'clients' | 'wifi' | 'dhcp' | 'firewall' | 'mac' | 'port
     RouterDnsHosts,
     RouterDdns,
     RouterUpnpSwitch,
+    RouterDeviceAccess,
     RouterWifiSchedule,
     RouterWifiRadios,
     RouterLed,
