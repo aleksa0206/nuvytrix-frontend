@@ -1,0 +1,94 @@
+<section class="panel">
+  <header class="panel__header">
+    <h2>Automatic Wi-Fi shutdown</h2>
+    <span class="panel__meta">the router turns Wi-Fi off during these periods</span>
+  </header>
+  @if (schedule.isLoading() && !schedule.hasValue()) {
+    <app-loading />
+  }
+  @if (schedule.error(); as e) {
+    <app-load-error [error]="e" (retry)="schedule.reload()" />
+  }
+  @if (schedule.hasValue()) {
+    <div class="panel__body filter-state">
+      <app-state-badge
+        [state]="schedule.value().enabled ? 'operational' : 'disabled'"
+        [label]="schedule.value().enabled ? 'Schedule on' : 'Schedule off'"
+      />
+      @if (writable()) {
+        <label class="checkbox">
+          <input
+            type="checkbox"
+            [checked]="enabled()"
+            (change)="enabled.set(!enabled())"
+            aria-label="Schedule on"
+          />
+          On
+        </label>
+      }
+    </div>
+    <div class="panel__body stack">
+      @for (p of periods(); track $index; let i = $index) {
+        <div class="filter-state">
+          <label class="visually-hidden" [for]="'ws-start-' + i">Off from</label>
+          <input
+            [id]="'ws-start-' + i"
+            class="input"
+            type="time"
+            [value]="p.start"
+            [disabled]="!writable()"
+            (change)="setTime(i, 'start', $any($event.target).value)"
+          />
+          <span>–</span>
+          <label class="visually-hidden" [for]="'ws-end-' + i">Off until</label>
+          <input
+            [id]="'ws-end-' + i"
+            class="input"
+            type="time"
+            [value]="p.end"
+            [disabled]="!writable()"
+            (change)="setTime(i, 'end', $any($event.target).value)"
+          />
+          @for (d of days; track d.value) {
+            <label class="checkbox">
+              <input
+                type="checkbox"
+                [checked]="p.days.includes(d.value)"
+                [disabled]="!writable()"
+                (change)="toggleDay(i, d.value)"
+              />
+              {{ d.label }}
+            </label>
+          }
+          @if (writable()) {
+            <span class="spacer"></span>
+            <button type="button" class="btn btn--sm btn--danger" (click)="removePeriod(i)">
+              Remove
+            </button>
+          }
+        </div>
+      } @empty {
+        <p class="field__hint">No periods.</p>
+      }
+      @if (writable()) {
+        <div class="toolbar">
+          <button
+            type="button"
+            class="btn btn--sm"
+            [disabled]="periods().length >= 4"
+            (click)="addPeriod()"
+          >
+            Add period
+          </button>
+          <span class="spacer"></span>
+          <button type="button" class="btn btn--primary" [disabled]="saving()" (click)="save()">
+            {{ saving() ? 'Saving on the router…' : 'Save schedule' }}
+          </button>
+        </div>
+      }
+      @if (error()) {
+        <p class="notice notice--error" role="alert">{{ error() }}</p>
+      }
+    </div>
+  }
+</section>

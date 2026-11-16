@@ -384,7 +384,10 @@
       }
 
       @if (tab() === 'wifi') {
-        <app-router-wifi />
+        <div class="stack">
+          <app-router-wifi />
+          <app-router-wifi-schedule />
+        </div>
       }
 
       @if (tab() === 'dhcp') {
