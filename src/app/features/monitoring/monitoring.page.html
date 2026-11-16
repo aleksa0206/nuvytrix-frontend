@@ -26,11 +26,16 @@
             <select id="t-kind" class="select" formControlName="kind">
               <option value="icmp">Ping: availability, latency, loss</option>
               <option value="dns">DNS resolution time</option>
+              <option value="http">Website (HTTP/HTTPS): status, response time, certificate</option>
             </select>
           </div>
           <div class="field">
             <label for="t-host">{{
-              form.controls.kind.value === 'dns' ? 'Resolver IP' : 'Host or IP'
+              form.controls.kind.value === 'dns'
+                ? 'Resolver IP'
+                : form.controls.kind.value === 'http'
+                  ? 'URL (https://…)'
+                  : 'Host or IP'
             }}</label>
             <input
               id="t-host"
@@ -92,9 +97,7 @@
                   <span class="target__text">
                     <strong>{{ target.name }}</strong>
                     <small class="mono">{{
-                      target.kind === 'icmp'
-                        ? target.host
-                        : target.dnsQueryName + ' @' + target.host
+                      target.kind === 'dns' ? target.dnsQueryName + ' @' + target.host : target.host
                     }}</small>
                   </span>
                   <span class="target__figures mono">
@@ -113,7 +116,15 @@
               <div class="detail__title">
                 <app-state-badge [state]="target.status" />
                 <h2>{{ target.name }}</h2>
-                <span class="chip">{{ target.kind === 'icmp' ? 'PING' : 'DNS' }}</span>
+                <span class="chip">{{ kindLabel[target.kind] }}</span>
+                @if (target.lastCheck?.httpStatus) {
+                  <span class="chip">HTTP {{ target.lastCheck!.httpStatus }}</span>
+                }
+                @if (target.lastCheck?.certExpiresAt; as exp) {
+                  <span class="chip" [class.chip--deny]="certDays(exp) < 14"
+                    >certificate {{ certDays(exp) }} days</span
+                  >
+                }
                 @if (target.managed) {
                   <span class="text-tertiary small">from config</span>
                 }
@@ -201,7 +212,7 @@
                   }}<small>{{ s.current.avgLoss !== null ? '%' : '' }}</small></span
                 >
                 <span class="figure__note">{{
-                  target.kind === 'dns' ? 'not measured for DNS' : 'average over checks'
+                  target.kind === 'icmp' ? 'average over checks' : 'measured for ping only'
                 }}</span>
               </div>
               <div class="figure">
@@ -234,7 +245,13 @@
                 <div class="charts">
                   <div class="chart-block">
                     <h3>
-                      {{ target.kind === 'dns' ? 'Resolution time' : 'Latency' }}
+                      {{
+                        target.kind === 'dns'
+                          ? 'Resolution time'
+                          : target.kind === 'http'
+                            ? 'Response time'
+                            : 'Latency'
+                      }}
                       <span>average per bucket, band up to the bucket maximum</span>
                     </h3>
                     <app-line-chart
@@ -252,6 +269,18 @@
                       [cellCount]="hours() <= 1 ? 60 : 96"
                     />
                   </div>
+                  @if (hasJitter()) {
+                    <div class="chart-block">
+                      <h3>Jitter <span>variation of ping round-trip times (mdev)</span></h3>
+                      <app-line-chart
+                        [points]="jitterPoints()"
+                        [bucketMinutes]="series.value().bucketMinutes"
+                        unit=" ms"
+                        [height]="110"
+                        [label]="'Jitter of ' + target.name"
+                      />
+                    </div>
+                  }
                   @if (hasLoss()) {
                     <div class="chart-block">
                       <h3>Packet loss <span>percent of pings without reply</span></h3>
@@ -267,6 +296,32 @@
                 </div>
               }
             }
+            <div class="chart-block outages">
+              <h3>
+                Outages
+                <span
+                  >two or more failed checks in a row, last
+                  {{ outages.value()?.days ?? 1 }} days</span
+                >
+              </h3>
+              @if (outages.hasValue()) {
+                @if (outages.value().outages.length === 0) {
+                  <p class="text-tertiary">No outages in this period.</p>
+                } @else {
+                  <table class="table table--compact">
+                    <tbody>
+                      @for (o of outages.value().outages; track o.start) {
+                        <tr>
+                          <td>{{ o.start | dateTime }}</td>
+                          <td>{{ o.end ? duration(o.durationSeconds) : 'ongoing' }}</td>
+                          <td class="mono text-tertiary">{{ o.error ?? '' }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                }
+              }
+            </div>
           </section>
         }
       </div>

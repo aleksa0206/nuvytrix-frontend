@@ -6,7 +6,7 @@ export type TargetStatus = 'up' | 'degraded' | 'down' | 'unknown' | 'disabled';
 export interface MonitoringTarget {
   id: number;
   name: string;
-  kind: 'icmp' | 'dns';
+  kind: 'icmp' | 'dns' | 'http';
   host: string;
   dnsQueryName: string | null;
   enabled: boolean;
@@ -20,6 +20,9 @@ export interface MonitoringTarget {
     latencyMs: number | null;
     packetLossPercent: number | null;
     error: string | null;
+    jitterMs: number | null;
+    httpStatus: number | null;
+    certExpiresAt: string | null;
   } | null;
   lastSuccessAt: string | null;
   window: {
@@ -33,7 +36,7 @@ export interface MonitoringTarget {
 
 export interface TargetInput {
   name: string;
-  kind: 'icmp' | 'dns';
+  kind: 'icmp' | 'dns' | 'http';
   host: string;
   dnsQueryName?: string | null;
   enabled?: boolean;
@@ -46,6 +49,15 @@ export interface SeriesPoint {
   avgLatencyMs: number | null;
   maxLatencyMs: number | null;
   avgPacketLossPercent: number | null;
+  avgJitterMs: number | null;
+}
+
+export interface Outage {
+  start: string;
+  end: string | null;
+  durationSeconds: number;
+  checks: number;
+  error: string | null;
 }
 
 export interface TargetSeries {

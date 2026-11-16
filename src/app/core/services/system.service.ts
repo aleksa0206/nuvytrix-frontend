@@ -7,6 +7,7 @@ import type {
   DnsStats,
   DnsStatus,
   MonitoringTarget,
+  Outage,
   Overview,
   SystemSettings,
   TargetInput,
@@ -42,6 +43,15 @@ export class SystemService {
 
   targetsResource() {
     return httpResource<MonitoringTarget[]>(() => apiUrl('/monitoring/targets'));
+  }
+
+  outagesResource(target: () => number | undefined, days: () => number) {
+    return httpResource<{ days: number; outages: Outage[] }>(() => {
+      const id = target();
+      return id
+        ? { url: apiUrl(`/monitoring/targets/${id}/outages`), params: toParams({ days: days() }) }
+        : undefined;
+    });
   }
 
   seriesResource(target: () => number | undefined, hours: () => number) {

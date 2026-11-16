@@ -17,9 +17,10 @@ import { EmptyState, LoadError, Loading } from '../../shared/ui/feedback';
 import { LineChart } from '../../shared/ui/line-chart';
 import { PageHeader } from '../../shared/ui/page-header';
 import { StateBadge } from '../../shared/ui/state-badge';
-import { RelativePipe } from '../../shared/util/format.pipes';
+import { DateTimePipe, RelativePipe } from '../../shared/util/format.pipes';
 
 const HOST = /^[a-zA-Z0-9]([a-zA-Z0-9.:-]{0,252})$/;
+const URL_PATTERN = /^https?:\/\/[^\s/@]+(\/\S*)?$/;
 
 interface WindowStats {
   checks: number;
@@ -42,6 +43,7 @@ interface WindowStats {
     LineChart,
     AvailabilityStrip,
     RelativePipe,
+    DateTimePipe,
   ],
   templateUrl: './monitoring.page.html',
   styleUrl: './monitoring.page.scss',
@@ -90,13 +92,32 @@ export class MonitoringPage {
     this.current().map((p) => ({ at: p.at, value: p.avgPacketLossPercent })),
   );
   protected readonly hasLoss = computed(() => this.lossPoints().some((p) => p.value !== null));
+  protected readonly jitterPoints = computed(() =>
+    this.current().map((p) => ({ at: p.at, value: p.avgJitterMs })),
+  );
+  protected readonly hasJitter = computed(() => this.jitterPoints().some((p) => p.value !== null));
+  protected readonly outages = this.system.outagesResource(this.selectedId, () =>
+    Math.max(1, Math.ceil(this.hours() / 24)),
+  );
+  protected readonly kindLabel = { icmp: 'PING', dns: 'DNS', http: 'HTTP' } as const;
+
+  /** Days until an HTTPS certificate expires. */
+  protected certDays(iso: string): number {
+    return Math.floor((new Date(iso).getTime() - Date.now()) / 86_400_000);
+  }
+
+  protected duration(seconds: number): string {
+    if (seconds < 120) return `${seconds} s`;
+    if (seconds < 7200) return `${Math.round(seconds / 60)} min`;
+    return `${Math.round(seconds / 360) / 10} h`;
+  }
 
   protected readonly showForm = signal(false);
   protected readonly formError = signal<string | null>(null);
   protected readonly actionError = signal<string | null>(null);
   protected readonly form = inject(NonNullableFormBuilder).group({
     name: ['', [Validators.required, Validators.maxLength(100)]],
-    kind: ['icmp' as 'icmp' | 'dns'],
+    kind: ['icmp' as 'icmp' | 'dns' | 'http'],
     host: ['', [Validators.required, Validators.pattern(HOST)]],
     dnsQueryName: ['example.com'],
   });
@@ -115,7 +136,16 @@ export class MonitoringPage {
     pollWhileVisible(() => {
       this.targets.reload();
       this.series.reload();
+      this.outages.reload();
     }, 30_000);
+    // The host field means a URL for HTTP targets and an IP or hostname otherwise.
+    this.form.controls.kind.valueChanges.subscribe((kind) => {
+      this.form.controls.host.setValidators([
+        Validators.required,
+        Validators.pattern(kind === 'http' ? URL_PATTERN : HOST),
+      ]);
+      this.form.controls.host.updateValueAndValidity();
+    });
   }
 
   protected metric(value: number | null | undefined, unit: string): string {
