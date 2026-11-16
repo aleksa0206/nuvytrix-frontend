@@ -146,6 +146,8 @@ export interface RouterHistoryPoint {
   opticalTemperatureC: number | null;
   wanDownloadBps: number | null;
   wanUploadBps: number | null;
+  lanDownloadBps: number | null;
+  lanUploadBps: number | null;
   wifiClients: number | null;
   devicesOnline: number | null;
 }

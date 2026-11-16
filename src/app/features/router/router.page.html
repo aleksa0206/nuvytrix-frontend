@@ -147,8 +147,8 @@
           </section>
           <section class="panel">
             <header class="panel__header">
-              <h2>Internet download</h2>
-              <span class="panel__meta">Mbit/s, average between reads</span>
+              <h2>Traffic to devices</h2>
+              <span class="panel__meta">Mbit/s sent to LAN and Wi-Fi, average between reads</span>
             </header>
             <div class="panel__body">
               @if (downloadPoints().length > 2) {
@@ -157,7 +157,7 @@
                   [bucketMinutes]="(s.pollSeconds / 60) * 1.5"
                   unit=" Mb"
                   [height]="140"
-                  label="Internet download rate"
+                  label="Traffic to devices"
                 />
               } @else {
                 <app-empty-state title="Collecting samples" />

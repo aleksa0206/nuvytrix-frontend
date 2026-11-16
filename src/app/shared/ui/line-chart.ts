@@ -9,7 +9,7 @@ export interface ChartPoint {
 }
 
 const HEIGHT = 180;
-const PAD = { top: 12, right: 12, bottom: 22, left: 46 };
+const PAD = { top: 22, right: 12, bottom: 22, left: 46 };
 
 /**
  * SVG time-series chart for measured values. Gaps (null values, or missing buckets longer than

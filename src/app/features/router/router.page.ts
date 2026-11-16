@@ -56,7 +56,7 @@ export class RouterPage {
     this.history.hasValue()
       ? this.history.value().points.map((p) => ({
           at: p.at,
-          value: p.wanDownloadBps === null ? null : Math.round(p.wanDownloadBps / 10_000) / 100,
+          value: p.lanDownloadBps === null ? null : Math.round(p.lanDownloadBps / 10_000) / 100,
         }))
       : [],
   );
