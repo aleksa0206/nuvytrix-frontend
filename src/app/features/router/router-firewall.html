@@ -1,0 +1,260 @@
+<section class="panel">
+  <header class="panel__header">
+    <h2>IPv4 filtering on the router</h2>
+    <span class="panel__meta">read from the router now; changes are saved on the router</span>
+  </header>
+
+  @if (filter.isLoading() && !filter.hasValue()) {
+    <app-loading />
+  }
+  @if (filter.error(); as error) {
+    <app-load-error [error]="error" (retry)="filter.reload()" />
+  }
+
+  @if (filter.hasValue()) {
+    @let f = filter.value();
+    <div class="panel__body filter-state">
+      <app-state-badge
+        [state]="f.enabled ? 'operational' : 'disabled'"
+        [label]="f.enabled ? 'Filtering enabled' : 'Filtering disabled'"
+      />
+      <span
+        >Mode <strong>{{ f.mode }}</strong></span
+      >
+      <span
+        >Firewall level <strong>{{ f.firewallLevel ?? '—' }}</strong></span
+      >
+      @if (writable()) {
+        <span class="spacer"></span>
+        <button type="button" class="btn" [disabled]="saving()" (click)="toggle(!f.enabled)">
+          {{ f.enabled ? 'Turn off' : 'Turn on' }}
+        </button>
+        <button
+          type="button"
+          class="btn btn--primary"
+          [disabled]="saving()"
+          (click)="startCreate()"
+        >
+          New rule
+        </button>
+      }
+    </div>
+
+    @if (!f.writesEnabled) {
+      <p class="panel__body notice notice--info">
+        Changing router settings is turned off on the server (ROUTER_WRITES_ENABLED). Rules are
+        shown read-only.
+      </p>
+    } @else if (f.mode !== 'blacklist') {
+      <p class="panel__body notice notice--warning">
+        The router filter is in {{ f.mode }} mode. Nuvytrix only edits blacklist mode; change
+        whitelist or hybrid rules in the router's own interface.
+      </p>
+    } @else if (!f.enabled) {
+      <p class="panel__body notice notice--warning">
+        Filtering is off, so the rules below do not apply.
+      </p>
+    }
+
+    @if (actionError()) {
+      <p class="panel__body notice notice--error" role="alert">{{ actionError() }}</p>
+    }
+
+    @if (editing()) {
+      <form class="panel__body stack" [formGroup]="form" (ngSubmit)="save()" novalidate>
+        <h3>{{ editing() === 'new' ? 'New rule' : 'Edit rule' }}</h3>
+        <p class="field__hint">
+          Blacklist mode: matching traffic between the LAN-side and WAN-side addresses is blocked,
+          in both directions.
+        </p>
+        <div class="form-grid">
+          <div class="field">
+            <label for="rf-name">Name</label>
+            <input
+              id="rf-name"
+              class="input"
+              formControlName="name"
+              maxlength="31"
+              [attr.aria-invalid]="
+                (form.controls.name.touched && form.controls.name.invalid) || !!fieldError('name')
+              "
+            />
+            @if (fieldError('name'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <div class="field">
+            <label for="rf-protocol">Protocol</label>
+            <select id="rf-protocol" class="select" formControlName="protocol">
+              @for (p of protocols; track p) {
+                <option [value]="p">{{ p === 'ALL' ? 'All' : p }}</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label for="rf-lan-start">LAN-side address</label>
+            <input
+              id="rf-lan-start"
+              class="input mono"
+              formControlName="lanIpStart"
+              placeholder="192.168.100.50"
+            />
+            @if (fieldError('lanIpStart'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <div class="field">
+            <label for="rf-lan-end">LAN-side end (optional)</label>
+            <input id="rf-lan-end" class="input mono" formControlName="lanIpEnd" />
+            @if (fieldError('lanIpEnd'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <div class="field">
+            <label for="rf-wan-start">WAN-side address (optional)</label>
+            <input id="rf-wan-start" class="input mono" formControlName="wanIpStart" />
+            @if (fieldError('wanIpStart'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          <div class="field">
+            <label for="rf-wan-end">WAN-side end (optional)</label>
+            <input id="rf-wan-end" class="input mono" formControlName="wanIpEnd" />
+            @if (fieldError('wanIpEnd'); as message) {
+              <span class="field__error">{{ message }}</span>
+            }
+          </div>
+          @if (tcp()) {
+            <div class="field">
+              <label for="rf-lan-tcp">LAN TCP ports</label>
+              <input
+                id="rf-lan-tcp"
+                class="input mono"
+                formControlName="lanTcpPorts"
+                placeholder="80,443,8000:8080"
+              />
+              @if (fieldError('lanTcpPorts'); as message) {
+                <span class="field__error">{{ message }}</span>
+              }
+            </div>
+            <div class="field">
+              <label for="rf-wan-tcp">WAN TCP ports</label>
+              <input id="rf-wan-tcp" class="input mono" formControlName="wanTcpPorts" />
+              @if (fieldError('wanTcpPorts'); as message) {
+                <span class="field__error">{{ message }}</span>
+              }
+            </div>
+          }
+          @if (udp()) {
+            <div class="field">
+              <label for="rf-lan-udp">LAN UDP ports</label>
+              <input id="rf-lan-udp" class="input mono" formControlName="lanUdpPorts" />
+              @if (fieldError('lanUdpPorts'); as message) {
+                <span class="field__error">{{ message }}</span>
+              }
+            </div>
+            <div class="field">
+              <label for="rf-wan-udp">WAN UDP ports</label>
+              <input id="rf-wan-udp" class="input mono" formControlName="wanUdpPorts" />
+              @if (fieldError('wanUdpPorts'); as message) {
+                <span class="field__error">{{ message }}</span>
+              }
+            </div>
+          }
+        </div>
+        @if (tcp() || udp()) {
+          <p class="field__hint">
+            Ports: comma-separated, ranges as start:end, at most 15 entries. Empty means all ports.
+          </p>
+        }
+        @if (formError()) {
+          <p class="notice notice--error" role="alert">{{ formError() }}</p>
+        }
+        <div class="toolbar">
+          <button type="submit" class="btn btn--primary" [disabled]="saving()">
+            {{ saving() ? 'Saving on the router…' : 'Save on the router' }}
+          </button>
+          <button type="button" class="btn" [disabled]="saving()" (click)="editing.set(null)">
+            Cancel
+          </button>
+        </div>
+      </form>
+    }
+
+    @if (f.rules.length === 0) {
+      <app-empty-state title="No IPv4 filter rules on the router" />
+    } @else {
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Protocol</th>
+              <th>LAN side</th>
+              <th>WAN side</th>
+              <th>Ports</th>
+              <th>Action</th>
+              @if (writable()) {
+                <th><span class="visually-hidden">Actions</span></th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of f.rules; track r.domain) {
+              <tr>
+                <td>{{ r.name || '—' }}</td>
+                <td>
+                  <span class="chip">{{ r.protocol }}</span>
+                </td>
+                <td class="mono">
+                  {{ r.sourceIpStart || 'any' }}{{ r.sourceIpEnd ? '–' + r.sourceIpEnd : '' }}
+                </td>
+                <td class="mono">
+                  {{ r.destIpStart || 'any' }}{{ r.destIpEnd ? '–' + r.destIpEnd : '' }}
+                </td>
+                <td class="mono">
+                  @if (r.lanTcpPorts) {
+                    <div>LAN TCP {{ r.lanTcpPorts }}</div>
+                  }
+                  @if (r.lanUdpPorts) {
+                    <div>LAN UDP {{ r.lanUdpPorts }}</div>
+                  }
+                  @if (r.wanTcpPorts) {
+                    <div>WAN TCP {{ r.wanTcpPorts }}</div>
+                  }
+                  @if (r.wanUdpPorts) {
+                    <div>WAN UDP {{ r.wanUdpPorts }}</div>
+                  }
+                  @if (!r.lanTcpPorts && !r.lanUdpPorts && !r.wanTcpPorts && !r.wanUdpPorts) {
+                    all
+                  }
+                </td>
+                <td>{{ r.action || (f.mode === 'blacklist' ? 'deny' : 'allow') }}</td>
+                @if (writable()) {
+                  <td class="row-actions">
+                    <button
+                      type="button"
+                      class="btn btn--sm"
+                      [disabled]="saving()"
+                      (click)="startEdit(r)"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn--sm btn--danger"
+                      [disabled]="saving()"
+                      (click)="remove(r)"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</section>

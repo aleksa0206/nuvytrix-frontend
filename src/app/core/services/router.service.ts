@@ -1,9 +1,13 @@
 import { HttpClient, httpResource } from '@angular/common/http';
 import { Service, inject } from '@angular/core';
 import type {
+  IpFilterRule,
+  IpFilterRuleInput,
+  IpFilterState,
   PortMapping,
   RouterClient,
   RouterHistoryPoint,
+  RouterFirewallState,
   RouterStatus,
 } from '../models/router.model';
 import { apiUrl, toParams } from '../api/http';
@@ -32,6 +36,27 @@ export class RouterService {
       url: apiUrl('/router/history'),
       params: toParams({ hours: hours() }),
     }));
+  }
+
+  /** IPv4 filter read from the router on request (not from the last poll). */
+  firewallResource() {
+    return httpResource<RouterFirewallState>(() => apiUrl('/router/firewall'));
+  }
+
+  addFirewallRule(input: IpFilterRuleInput) {
+    return this.http.post<{ rule: IpFilterRule }>(apiUrl('/router/firewall/rules'), input);
+  }
+
+  updateFirewallRule(index: number, input: IpFilterRuleInput) {
+    return this.http.put<{ rule: IpFilterRule }>(apiUrl(`/router/firewall/rules/${index}`), input);
+  }
+
+  deleteFirewallRule(index: number) {
+    return this.http.delete<IpFilterState>(apiUrl(`/router/firewall/rules/${index}`));
+  }
+
+  changeFirewall(change: { enabled?: boolean; mode?: 'blacklist' }) {
+    return this.http.patch<IpFilterState>(apiUrl('/router/firewall'), change);
   }
 
   refresh() {

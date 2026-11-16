@@ -344,77 +344,7 @@
       }
 
       @if (tab() === 'firewall') {
-        <section class="panel">
-          <header class="panel__header">
-            <h2>IPv4 filtering on the router</h2>
-            <span class="panel__meta"
-              >as configured on the router; edit rules on the router or plan them under Rules</span
-            >
-          </header>
-          @if (s.ipFilter; as f) {
-            <div class="panel__body filter-state">
-              <app-state-badge
-                [state]="f.enabled ? 'operational' : 'disabled'"
-                [label]="f.enabled ? 'Filtering enabled' : 'Filtering disabled'"
-              />
-              <span
-                >Mode <strong>{{ f.mode }}</strong></span
-              >
-              <span
-                >Firewall level <strong>{{ f.firewallLevel ?? '—' }}</strong></span
-              >
-            </div>
-            @if (f.rules.length === 0) {
-              <app-empty-state title="No IPv4 filter rules on the router" />
-            } @else {
-              <div class="table-wrap">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Protocol</th>
-                      <th>Direction</th>
-                      <th>LAN side</th>
-                      <th>WAN side</th>
-                      <th>Ports</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (r of f.rules; track r.domain) {
-                      <tr>
-                        <td>{{ r.name || '—' }}</td>
-                        <td>
-                          <span class="chip">{{ r.protocol }}</span>
-                        </td>
-                        <td>{{ r.direction }}</td>
-                        <td class="mono">
-                          {{ r.sourceIpStart || 'any'
-                          }}{{ r.sourceIpEnd ? '–' + r.sourceIpEnd : '' }}
-                        </td>
-                        <td class="mono">
-                          {{ r.destIpStart || 'any' }}{{ r.destIpEnd ? '–' + r.destIpEnd : '' }}
-                        </td>
-                        <td class="mono">
-                          {{
-                            r.lanTcpPorts ||
-                              r.lanUdpPorts ||
-                              r.wanTcpPorts ||
-                              r.wanUdpPorts ||
-                              'all'
-                          }}
-                        </td>
-                        <td>{{ r.action || (f.mode === 'blacklist' ? 'deny' : 'allow') }}</td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </div>
-            }
-          } @else {
-            <app-empty-state title="Filter state could not be read" />
-          }
-        </section>
+        <app-router-firewall />
 
         <section class="panel">
           <header class="panel__header">

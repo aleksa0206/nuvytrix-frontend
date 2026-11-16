@@ -80,6 +80,23 @@ export interface IpFilterState {
   rules: IpFilterRule[];
 }
 
+export interface RouterFirewallState extends IpFilterState {
+  writesEnabled: boolean;
+}
+
+export interface IpFilterRuleInput {
+  name: string;
+  protocol: 'ALL' | 'TCP/UDP' | 'TCP' | 'UDP' | 'ICMP';
+  lanIpStart: string;
+  lanIpEnd: string;
+  wanIpStart: string;
+  wanIpEnd: string;
+  lanTcpPorts: string;
+  lanUdpPorts: string;
+  wanTcpPorts: string;
+  wanUdpPorts: string;
+}
+
 export type RouterStatus =
   | { configured: false; host: string | null }
   | {

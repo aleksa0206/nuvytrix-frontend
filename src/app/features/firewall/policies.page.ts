@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { toApiError } from '../../core/api/api-error';
@@ -31,7 +32,15 @@ const TRANSITION_LABELS: Record<PolicyStatus, string> = {
 @Component({
   selector: 'app-firewall-policies-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, StateBadge, EmptyState, LoadError, Loading, RelativePipe],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    StateBadge,
+    EmptyState,
+    LoadError,
+    Loading,
+    RelativePipe,
+  ],
   templateUrl: './policies.page.html',
   styleUrl: './policies.page.scss',
 })

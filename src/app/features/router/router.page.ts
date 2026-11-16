@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { toApiError } from '../../core/api/api-error';
 import { pollWhileVisible } from '../../core/polling';
 import { RouterService } from '../../core/services/router.service';
+import { RouterFirewall } from './router-firewall';
 import { EmptyState, LoadError, Loading } from '../../shared/ui/feedback';
 import { LineChart } from '../../shared/ui/line-chart';
 import { PageHeader } from '../../shared/ui/page-header';
@@ -24,6 +25,7 @@ type Tab = 'overview' | 'clients' | 'firewall';
     EmptyState,
     LineChart,
     RelativePipe,
+    RouterFirewall,
   ],
   templateUrl: './router.page.html',
   styleUrl: './router.page.scss',
