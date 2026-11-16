@@ -49,6 +49,11 @@ export const routes: Routes = [
           import('./features/firewall/firewall.routes').then((m) => m.FIREWALL_ROUTES),
       },
       {
+        path: 'server',
+        title: 'Server · Nuvytrix',
+        loadComponent: () => import('./features/server/server.page').then((m) => m.ServerPage),
+      },
+      {
         path: 'monitoring',
         title: 'Monitoring · Nuvytrix',
         loadComponent: () =>

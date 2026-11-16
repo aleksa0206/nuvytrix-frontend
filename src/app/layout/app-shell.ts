@@ -61,6 +61,7 @@ export class AppShell {
         { path: '/topology', label: 'Topology', icon: 'topology' },
         { path: '/devices', label: 'Devices', icon: 'devices' },
         { path: '/monitoring', label: 'Monitoring', icon: 'monitoring' },
+        { path: '/server', label: 'Server', icon: 'server' },
       ],
     },
     {
