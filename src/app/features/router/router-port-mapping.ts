@@ -71,6 +71,12 @@ export class RouterPortMapping {
     remoteHostEnd: [''],
   });
 
+  /** `80:80` reads as `80`, `80:90` as `80–90`. */
+  protected portRange(ports: string): string {
+    const [start, end] = ports.split(':');
+    return !end || end === start ? start! : `${start}–${end}`;
+  }
+
   protected deviceName(ip: string): string | null {
     const device = this.devices().find((d) => d.ipAddress === ip);
     return device ? (device.customName ?? device.hostName) : null;
@@ -183,7 +189,7 @@ export class RouterPortMapping {
       title: mapping.enabled ? `Turn off “${mapping.name}”?` : `Turn on “${mapping.name}”?`,
       message: mapping.enabled
         ? 'The ports close; the settings are kept.'
-        : `${range.protocol} port ${range.externalPort.replace(':', '–')} opens towards ${mapping.internalHost}.`,
+        : `${range.protocol} port ${this.portRange(range.externalPort)} opens towards ${mapping.internalHost}.`,
       confirmLabel: mapping.enabled ? 'Turn off' : 'Turn on',
       danger: !mapping.enabled,
     });

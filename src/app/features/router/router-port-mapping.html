@@ -197,7 +197,7 @@
                 <td class="mono">
                   @for (r of m.ranges; track r.domain) {
                     <div>
-                      {{ r.protocol }} {{ r.externalPort.replace(':', '–') }} → {{ r.internalPort }}
+                      {{ r.protocol }} {{ portRange(r.externalPort) }} → {{ r.internalPort }}
                     </div>
                   }
                 </td>
