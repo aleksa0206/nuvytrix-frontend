@@ -1,7 +1,7 @@
 <div class="page">
   <app-page-header
     title="Router"
-    description="Huawei OptiXstar, read and managed by the server through the router's web interface and UPnP. Changes are made only from the DHCP and Firewall &amp; UPnP tabs, after confirmation."
+    description="Huawei OptiXstar, read and managed by the server through the router's web interface and UPnP. Changes are made only from the DHCP, Firewall &amp; UPnP and MAC filter tabs, after confirmation."
   >
     @if (status.hasValue() && status.value().configured) {
       @let s = status.value();
@@ -81,6 +81,14 @@
           (click)="tab.set('firewall')"
         >
           Firewall &amp; UPnP
+        </button>
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-pressed]="tab() === 'mac'"
+          (click)="tab.set('mac')"
+        >
+          MAC filter
         </button>
       </div>
 
@@ -353,6 +361,10 @@
 
       @if (tab() === 'dhcp') {
         <app-router-dhcp />
+      }
+
+      @if (tab() === 'mac') {
+        <app-router-mac-filter />
       }
 
       @if (tab() === 'firewall') {

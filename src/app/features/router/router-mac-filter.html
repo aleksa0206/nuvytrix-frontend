@@ -1,0 +1,204 @@
+@if (filters.isLoading() && !filters.hasValue()) {
+  <app-loading />
+}
+@if (filters.error(); as error) {
+  <app-load-error [error]="error" (retry)="filters.reload()" />
+}
+
+@if (filters.hasValue()) {
+  @let state = filters.value();
+  @if (!state.writesEnabled) {
+    <p class="notice notice--info">
+      Changing router settings is turned off on the server (ROUTER_WRITES_ENABLED). MAC filters are
+      shown read-only.
+    </p>
+  }
+  @if (actionError()) {
+    <p class="notice notice--error" role="alert">{{ actionError() }}</p>
+  }
+
+  @for (list of lists; track list) {
+    @let f = state[list];
+    <section class="panel">
+      <header class="panel__header">
+        <h2>{{ titles[list] }}</h2>
+        <span class="panel__meta">{{
+          list === 'lan'
+            ? 'listed devices get no access through the router'
+            : 'listed devices cannot join the chosen Wi-Fi network'
+        }}</span>
+      </header>
+      <div class="panel__body filter-state">
+        <app-state-badge
+          [state]="f.enabled ? 'operational' : 'disabled'"
+          [label]="f.enabled ? 'Filter on' : 'Filter off'"
+        />
+        <span
+          >Mode <strong>{{ f.mode }}</strong></span
+        >
+        @if (writable(list)) {
+          <span class="spacer"></span>
+          <button
+            type="button"
+            class="btn"
+            [class.btn--danger]="!f.enabled && f.entries.length > 0"
+            [disabled]="saving()"
+            (click)="toggle(list, !f.enabled)"
+          >
+            {{ f.enabled ? 'Turn off' : 'Turn on' }}
+          </button>
+          <button
+            type="button"
+            class="btn btn--primary"
+            [disabled]="saving()"
+            (click)="startCreate(list)"
+          >
+            Add device
+          </button>
+        }
+      </div>
+
+      @if (f.mode !== 'blacklist') {
+        <p class="panel__body notice notice--warning">
+          This filter is in {{ f.mode }} mode. Nuvytrix only edits blacklists; change a whitelist in
+          the router's own interface.
+        </p>
+      } @else if (!f.enabled && f.entries.length > 0) {
+        <p class="panel__body notice notice--warning">
+          The filter is off, so the devices below are not blocked.
+        </p>
+      }
+
+      @if (editing()?.list === list) {
+        <form class="panel__body stack" [formGroup]="form" (ngSubmit)="save()" novalidate>
+          <h3>{{ editing()?.entry === 'new' ? 'Add device' : 'Edit entry' }}</h3>
+          <div class="form-grid">
+            @if (devices().length) {
+              <div class="field">
+                <label [for]="'mf-device-' + list">Device (fills in MAC and name)</label>
+                <select
+                  [id]="'mf-device-' + list"
+                  class="select"
+                  #device
+                  (change)="pickDevice(device.value)"
+                >
+                  <option value="">Choose a device…</option>
+                  @for (c of devices(); track c.macAddress) {
+                    <option [value]="c.macAddress">
+                      {{ c.customName ?? c.hostName ?? c.macAddress }} —
+                      {{ c.ipAddress ?? 'no address' }}
+                    </option>
+                  }
+                </select>
+              </div>
+            }
+            <div class="field">
+              <label [for]="'mf-mac-' + list">MAC address</label>
+              <input
+                [id]="'mf-mac-' + list"
+                class="input mono"
+                formControlName="mac"
+                placeholder="aa:bb:cc:dd:ee:ff"
+                [attr.aria-invalid]="
+                  (form.controls.mac.touched && form.controls.mac.invalid) || !!fieldError('mac')
+                "
+              />
+              @if (fieldError('mac'); as message) {
+                <span class="field__error">{{ message }}</span>
+              } @else if (form.controls.mac.touched && form.controls.mac.invalid) {
+                <span class="field__error">Use a MAC address like aa:bb:cc:dd:ee:ff</span>
+              }
+            </div>
+            <div class="field">
+              <label [for]="'mf-name-' + list">Name (optional)</label>
+              <input [id]="'mf-name-' + list" class="input" formControlName="name" maxlength="32" />
+              @if (fieldError('name'); as message) {
+                <span class="field__error">{{ message }}</span>
+              } @else if (form.controls.name.invalid) {
+                <span class="field__error"
+                  >Letters, digits, spaces, dot, dash and underscore only</span
+                >
+              }
+            </div>
+            @if (list === 'wifi') {
+              <div class="field">
+                <label for="mf-ssid">Wi-Fi network</label>
+                <select id="mf-ssid" class="select" formControlName="ssid">
+                  @for (n of state.wifiNetworks; track n.id) {
+                    <option [value]="n.id">{{ n.ssid }} ({{ n.band }})</option>
+                  }
+                </select>
+                @if (fieldError('ssid'); as message) {
+                  <span class="field__error">{{ message }}</span>
+                }
+              </div>
+            }
+          </div>
+          @if (formError()) {
+            <p class="notice notice--error" role="alert">{{ formError() }}</p>
+          }
+          <div class="toolbar">
+            <button type="submit" class="btn btn--primary" [disabled]="saving()">
+              {{ saving() ? 'Saving on the router…' : 'Save on the router' }}
+            </button>
+            <button type="button" class="btn" [disabled]="saving()" (click)="editing.set(null)">
+              Cancel
+            </button>
+          </div>
+        </form>
+      }
+
+      @if (f.entries.length === 0) {
+        <app-empty-state title="No devices in this list" />
+      } @else {
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>MAC address</th>
+                @if (list === 'wifi') {
+                  <th>Wi-Fi network</th>
+                }
+                @if (writable(list)) {
+                  <th><span class="visually-hidden">Actions</span></th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (e of f.entries; track e.domain) {
+                <tr>
+                  <td>{{ e.name || deviceName(e.mac) || '—' }}</td>
+                  <td class="mono">{{ e.mac }}</td>
+                  @if (list === 'wifi') {
+                    <td>{{ networkName(e.ssid) }}</td>
+                  }
+                  @if (writable(list)) {
+                    <td class="row-actions">
+                      <button
+                        type="button"
+                        class="btn btn--sm"
+                        [disabled]="saving()"
+                        (click)="startEdit(list, e)"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn--sm btn--danger"
+                        [disabled]="saving()"
+                        (click)="remove(list, e)"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+  }
+}

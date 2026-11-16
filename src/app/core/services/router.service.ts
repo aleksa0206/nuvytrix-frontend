@@ -13,6 +13,11 @@ import type {
   DhcpServer,
   DhcpServerInput,
   RouterDhcpState,
+  MacFilterEntry,
+  MacFilterEntryInput,
+  MacFilterList,
+  MacFilterState,
+  RouterMacFilterState,
   RouterStatus,
 } from '../models/router.model';
 import { apiUrl, toParams } from '../api/http';
@@ -88,6 +93,32 @@ export class RouterService {
 
   deleteDhcpReservation(index: number) {
     return this.http.delete<DhcpReservation[]>(apiUrl(`/router/dhcp/reservations/${index}`));
+  }
+
+  macFilterResource() {
+    return httpResource<RouterMacFilterState>(() => apiUrl('/router/mac-filter'));
+  }
+
+  setMacFilterEnabled(list: MacFilterList, enabled: boolean) {
+    return this.http.patch<MacFilterState>(apiUrl(`/router/mac-filter/${list}`), { enabled });
+  }
+
+  addMacFilterEntry(list: MacFilterList, input: MacFilterEntryInput) {
+    return this.http.post<{ entry: MacFilterEntry }>(
+      apiUrl(`/router/mac-filter/${list}/entries`),
+      input,
+    );
+  }
+
+  updateMacFilterEntry(list: MacFilterList, index: number, input: MacFilterEntryInput) {
+    return this.http.put<{ entry: MacFilterEntry }>(
+      apiUrl(`/router/mac-filter/${list}/entries/${index}`),
+      input,
+    );
+  }
+
+  deleteMacFilterEntry(list: MacFilterList, index: number) {
+    return this.http.delete<MacFilterState>(apiUrl(`/router/mac-filter/${list}/entries/${index}`));
   }
 
   refresh() {

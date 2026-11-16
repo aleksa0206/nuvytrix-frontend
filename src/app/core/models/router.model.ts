@@ -204,3 +204,39 @@ export interface DhcpReservationInput {
   mac: string;
   ip: string;
 }
+
+export type MacFilterList = 'lan' | 'wifi';
+
+export interface MacFilterEntry {
+  /** TR-098 path; its last number is the index used by the API. */
+  domain: string;
+  mac: string;
+  name: string;
+  /** Wi-Fi list only, e.g. `SSID-1`. */
+  ssid?: string;
+}
+
+export interface MacFilterState {
+  enabled: boolean;
+  mode: 'blacklist' | 'whitelist' | 'unknown';
+  entries: MacFilterEntry[];
+}
+
+export interface WifiNetwork {
+  id: string;
+  ssid: string;
+  band: string;
+}
+
+export interface RouterMacFilterState {
+  writesEnabled: boolean;
+  lan: MacFilterState;
+  wifi: MacFilterState;
+  wifiNetworks: WifiNetwork[];
+}
+
+export interface MacFilterEntryInput {
+  mac: string;
+  name: string;
+  ssid?: string;
+}

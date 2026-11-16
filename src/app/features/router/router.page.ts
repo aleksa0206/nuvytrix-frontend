@@ -5,6 +5,7 @@ import { pollWhileVisible } from '../../core/polling';
 import { RouterService } from '../../core/services/router.service';
 import { RouterDhcp } from './router-dhcp';
 import { RouterFirewall } from './router-firewall';
+import { RouterMacFilter } from './router-mac-filter';
 import { EmptyState, LoadError, Loading } from '../../shared/ui/feedback';
 import { LineChart } from '../../shared/ui/line-chart';
 import { PageHeader } from '../../shared/ui/page-header';
@@ -12,7 +13,7 @@ import { StateBadge } from '../../shared/ui/state-badge';
 import { formatBytes, formatDuration } from '../../shared/util/format';
 import { RelativePipe } from '../../shared/util/format.pipes';
 
-type Tab = 'overview' | 'clients' | 'dhcp' | 'firewall';
+type Tab = 'overview' | 'clients' | 'dhcp' | 'firewall' | 'mac';
 
 @Component({
   selector: 'app-router-page',
@@ -28,6 +29,7 @@ type Tab = 'overview' | 'clients' | 'dhcp' | 'firewall';
     RelativePipe,
     RouterFirewall,
     RouterDhcp,
+    RouterMacFilter,
   ],
   templateUrl: './router.page.html',
   styleUrl: './router.page.scss',
