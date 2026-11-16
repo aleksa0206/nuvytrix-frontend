@@ -16,6 +16,7 @@ import { RouterUpnpSwitch } from './router-upnp-switch';
 import { RouterWifiSchedule } from './router-wifi-schedule';
 import { RouterWifiRadios } from './router-wifi-radios';
 import { RouterLed } from './router-led';
+import { RouterMaintenance } from './router-maintenance';
 import { EmptyState, LoadError, Loading } from '../../shared/ui/feedback';
 import { LineChart } from '../../shared/ui/line-chart';
 import { PageHeader } from '../../shared/ui/page-header';
@@ -50,6 +51,7 @@ type Tab = 'overview' | 'clients' | 'wifi' | 'dhcp' | 'firewall' | 'mac' | 'port
     RouterWifiSchedule,
     RouterWifiRadios,
     RouterLed,
+    RouterMaintenance,
   ],
   templateUrl: './router.page.html',
   styleUrl: './router.page.scss',

@@ -299,7 +299,10 @@
       }
 
       @if (tab() === 'overview') {
-        <app-router-led />
+        <div class="stack">
+          <app-router-led />
+          <app-router-maintenance />
+        </div>
       }
 
       @if (tab() === 'clients') {
