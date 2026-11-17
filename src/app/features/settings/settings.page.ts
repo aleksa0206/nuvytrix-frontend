@@ -6,6 +6,7 @@ import { Pagination } from '../../shared/ui/pagination';
 import { StateBadge } from '../../shared/ui/state-badge';
 import { DateTimePipe } from '../../shared/util/format.pipes';
 import { AlertThresholds } from './alert-thresholds';
+import { IntegrationsPanel } from './integrations-panel';
 
 @Component({
   selector: 'app-settings-page',
@@ -19,6 +20,7 @@ import { AlertThresholds } from './alert-thresholds';
     Pagination,
     DateTimePipe,
     AlertThresholds,
+    IntegrationsPanel,
   ],
   template: `
     <div class="page">
@@ -27,6 +29,7 @@ import { AlertThresholds } from './alert-thresholds';
         description="What this installation can do on the current hardware, its configuration, and the audit log."
       />
 
+      <app-integrations-panel />
       <app-alert-thresholds />
 
       <section class="panel">
