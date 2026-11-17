@@ -5,17 +5,29 @@ import { PageHeader } from '../../shared/ui/page-header';
 import { Pagination } from '../../shared/ui/pagination';
 import { StateBadge } from '../../shared/ui/state-badge';
 import { DateTimePipe } from '../../shared/util/format.pipes';
+import { AlertThresholds } from './alert-thresholds';
 
 @Component({
   selector: 'app-settings-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageHeader, StateBadge, EmptyState, LoadError, Loading, Pagination, DateTimePipe],
+  imports: [
+    PageHeader,
+    StateBadge,
+    EmptyState,
+    LoadError,
+    Loading,
+    Pagination,
+    DateTimePipe,
+    AlertThresholds,
+  ],
   template: `
     <div class="page">
       <app-page-header
         title="Settings"
         description="What this installation can do on the current hardware, its configuration, and the audit log."
       />
+
+      <app-alert-thresholds />
 
       <section class="panel">
         <header class="panel__header"><h2>Capabilities</h2></header>

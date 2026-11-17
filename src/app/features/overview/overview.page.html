@@ -224,7 +224,12 @@
                     <span class="attention__bar" aria-hidden="true"></span>
                     <span class="attention__text">
                       <strong>{{ alert.title }}</strong>
-                      <small>{{ alert.createdAt | dateTime }}</small>
+                      <small
+                        >{{ alert.createdAt | dateTime
+                        }}{{
+                          alert.resolvedAt ? ' · resolved ' + (alert.resolvedAt | dateTime) : ''
+                        }}</small
+                      >
                     </span>
                     @if (!alert.read) {
                       <span class="visually-hidden">unread</span>

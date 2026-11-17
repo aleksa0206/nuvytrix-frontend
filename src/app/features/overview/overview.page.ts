@@ -29,6 +29,7 @@ interface Alert {
   title: string;
   createdAt: string;
   read: boolean;
+  resolvedAt: string | null;
 }
 
 interface Attention {
