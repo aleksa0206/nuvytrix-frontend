@@ -8,6 +8,7 @@ import { StateBadge } from '../../shared/ui/state-badge';
 import { formatBytes, formatDuration } from '../../shared/util/format';
 import { RelativePipe } from '../../shared/util/format.pipes';
 import { ServerContainers } from './server-containers';
+import { ServerBackups } from './server-backups';
 
 interface ServerStatus {
   sampledAt: string;
@@ -47,7 +48,16 @@ interface ServerHistory {
 @Component({
   selector: 'app-server-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LineChart, StateBadge, LoadError, Loading, EmptyState, RelativePipe, ServerContainers],
+  imports: [
+    LineChart,
+    StateBadge,
+    LoadError,
+    Loading,
+    EmptyState,
+    RelativePipe,
+    ServerContainers,
+    ServerBackups,
+  ],
   template: `
     <div class="page">
       <header class="page-title">
@@ -140,6 +150,8 @@ interface ServerHistory {
       }
 
       <app-server-containers />
+
+      <app-server-backups />
 
       <section class="panel">
         <header class="panel__header">

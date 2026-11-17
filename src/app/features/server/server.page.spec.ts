@@ -54,6 +54,16 @@ describe('ServerPage', () => {
           },
         ],
       });
+    http
+      .expectOne((r) => r.url.endsWith('/server/backups'))
+      .flush({
+        enabled: true,
+        checkedAt: new Date().toISOString(),
+        error: null,
+        projects: [
+          { project: 'homewise', files: 0, latest: null, ageHours: null, state: 'missing' },
+        ],
+      });
     await fixture.whenStable();
     fixture.detectChanges();
     const text = (fixture.nativeElement as HTMLElement).textContent!;
@@ -61,5 +71,6 @@ describe('ServerPage', () => {
     expect(text).toContain('On battery');
     expect(text).toContain('System');
     expect(text).toContain('exited (137)');
+    expect(text).toContain('No backup');
   });
 });
