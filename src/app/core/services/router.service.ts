@@ -96,6 +96,10 @@ export class RouterService {
     return this.http.patch<DhcpServer>(apiUrl('/router/dhcp'), input);
   }
 
+  changeDhcpDns(servers: string[]) {
+    return this.http.put<DhcpServer>(apiUrl('/router/dhcp/dns'), { servers });
+  }
+
   addDhcpReservation(input: DhcpReservationInput) {
     return this.http.post<{ reservation: DhcpReservation }>(
       apiUrl('/router/dhcp/reservations'),

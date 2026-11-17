@@ -90,6 +90,12 @@ const FIELDS: {
             @if (saved()) {
               <span class="saved" role="status">Saved</span>
             }
+            <button type="button" class="btn" [disabled]="pushing()" (click)="testPush()">
+              Send test notification
+            </button>
+            @if (pushResult(); as r) {
+              <span role="status">{{ r }}</span>
+            }
           </div>
         </form>
         @if (error()) {
@@ -141,6 +147,31 @@ export class AlertThresholds {
   constructor() {
     effect(() => {
       if (this.thresholds.hasValue()) this.draft.set({ ...this.thresholds.value() });
+    });
+  }
+
+  protected readonly pushing = signal(false);
+  protected readonly pushResult = signal<string | null>(null);
+
+  /** Sends one message to phones subscribed in the ntfy app (docs/notifications.md). */
+  protected testPush() {
+    this.pushing.set(true);
+    this.pushResult.set(null);
+    this.http.post<{ enabled: boolean; sent: boolean }>(apiUrl('/alerts/push-test'), {}).subscribe({
+      next: (r) => {
+        this.pushing.set(false);
+        this.pushResult.set(
+          !r.enabled
+            ? 'Phone notifications are not set up (NTFY_URL)'
+            : r.sent
+              ? 'Sent to the phone'
+              : 'Not sent: the ntfy server did not accept it',
+        );
+      },
+      error: (err: unknown) => {
+        this.pushing.set(false);
+        this.pushResult.set(toApiError(err).message);
+      },
     });
   }
 

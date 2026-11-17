@@ -17,6 +17,9 @@ const UNITS = [
   { seconds: 60, label: 'minutes' },
 ] as const;
 
+/** AdGuard Home on the server (docs/adguard.md). */
+const ADGUARD_DNS = '192.168.100.27';
+
 const MAC = /^[0-9A-Fa-f]{2}([:-][0-9A-Fa-f]{2}){5}$/;
 
 /** The router's main DHCP pool and static reservations, read live, with confirmed changes. */
@@ -114,6 +117,39 @@ export class RouterDhcp {
     });
     if (!ok) return;
     this.submit(this.api.changeDhcpServer(input), () => this.editingPool.set(false));
+  }
+
+  /** Whole-home DNS through AdGuard, or back to the router (the rollback). */
+  protected async toggleAdguard() {
+    const toAdguard = this.dhcp.value()!.server.dnsServers.length === 0;
+    const ok = await this.confirm.ask(
+      toAdguard
+        ? {
+            title: 'Use AdGuard as DNS for every device?',
+            message:
+              `DHCP hands out ${ADGUARD_DNS} instead of the router. Devices switch when their lease renews ` +
+              '(within a day) or when they reconnect. While the server is down, those devices cannot ' +
+              'resolve names: switch back here, or on the router page at 192.168.100.1.',
+            confirmLabel: 'Use AdGuard',
+            danger: true,
+          }
+        : {
+            title: 'Hand out the router as DNS again?',
+            message:
+              'Devices go back to the router as DNS when their lease renews, or right away after reconnecting Wi-Fi.',
+            confirmLabel: 'Back to the router',
+          },
+    );
+    if (!ok) return;
+    this.actionError.set(null);
+    this.saving.set(true);
+    this.api.changeDhcpDns(toAdguard ? [ADGUARD_DNS] : []).subscribe({
+      next: () => this.done(),
+      error: (err: unknown) => {
+        this.actionError.set(toApiError(err).message);
+        this.done();
+      },
+    });
   }
 
   protected startCreate() {

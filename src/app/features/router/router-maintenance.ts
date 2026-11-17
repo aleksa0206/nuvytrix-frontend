@@ -63,6 +63,38 @@ interface DiagnosticsResult {
 
     <section class="panel">
       <header class="panel__header">
+        <h2>Restart the router</h2>
+        <span class="panel__meta">only when you ask; never automatic</span>
+      </header>
+      <form class="panel__body toolbar" (submit)="$event.preventDefault(); reboot()">
+        <p class="field__hint">
+          Internet, Wi-Fi and the hosted sites are down for about 2–3 minutes. Type
+          <strong class="mono">reboot</strong> to confirm.
+        </p>
+        <label class="visually-hidden" for="reboot-confirm">Confirmation</label>
+        <input
+          id="reboot-confirm"
+          class="input mono"
+          name="confirm"
+          [(ngModel)]="confirmText"
+          autocomplete="off"
+          maxlength="10"
+        />
+        <button
+          type="submit"
+          class="btn btn--danger"
+          [disabled]="rebooting() || confirmText !== 'reboot'"
+        >
+          {{ rebooting() ? 'Sending…' : 'Restart router' }}
+        </button>
+      </form>
+      @if (rebootMessage(); as m) {
+        <p class="panel__body notice" [class.notice--error]="m.error" role="status">{{ m.text }}</p>
+      }
+    </section>
+
+    <section class="panel">
+      <header class="panel__header">
         <h2>Router log</h2>
         <span class="panel__meta">configuration, shell and alarm entries kept by the router</span>
       </header>
@@ -91,6 +123,29 @@ export class RouterMaintenance {
   protected readonly running = signal(false);
   protected readonly result = signal<DiagnosticsResult | null>(null);
   protected readonly error = signal<string | null>(null);
+
+  protected confirmText = '';
+  protected readonly rebooting = signal(false);
+  protected readonly rebootMessage = signal<{ text: string; error: boolean } | null>(null);
+
+  protected reboot() {
+    this.rebooting.set(true);
+    this.rebootMessage.set(null);
+    this.http.post(apiUrl('/router/reboot'), { confirm: this.confirmText }).subscribe({
+      next: () => {
+        this.rebooting.set(false);
+        this.confirmText = '';
+        this.rebootMessage.set({
+          text: 'The router is restarting. It should be back in about 3 minutes.',
+          error: false,
+        });
+      },
+      error: (err: unknown) => {
+        this.rebooting.set(false);
+        this.rebootMessage.set({ text: toApiError(err).message, error: true });
+      },
+    });
+  }
 
   protected run() {
     this.error.set(null);
