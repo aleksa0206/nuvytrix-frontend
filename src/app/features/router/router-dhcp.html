@@ -35,11 +35,6 @@
       >
       @if (writable()) {
         <span class="spacer"></span>
-        <button type="button" class="btn" [disabled]="saving()" (click)="toggleAdguard()">
-          {{
-            d.server.dnsServers.length ? 'DNS back to the router' : 'Use AdGuard for all devices'
-          }}
-        </button>
         <button type="button" class="btn" [disabled]="saving()" (click)="startPoolEdit()">
           Change pool
         </button>
