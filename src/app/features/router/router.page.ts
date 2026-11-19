@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { toApiError } from '../../core/api/api-error';
 import { pollWhileVisible } from '../../core/polling';
 import { RouterService } from '../../core/services/router.service';
+import { AdguardDhcp } from './adguard-dhcp';
 import { RouterDhcp } from './router-dhcp';
 import { RouterFirewall } from './router-firewall';
 import { RouterMacFilter } from './router-mac-filter';
@@ -41,6 +42,7 @@ type Tab = 'overview' | 'clients' | 'wifi' | 'dhcp' | 'firewall' | 'mac' | 'port
     LineChart,
     RelativePipe,
     RouterFirewall,
+    AdguardDhcp,
     RouterDhcp,
     RouterMacFilter,
     RouterPortMapping,

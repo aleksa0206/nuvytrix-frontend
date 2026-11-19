@@ -49,6 +49,12 @@
       }
     </div>
 
+    @if (!d.server.enabled) {
+      <p class="panel__body notice notice--info">
+        Off on purpose since 2026-11-19: AdGuard Home hands out the addresses (panel above). To roll
+        back, turn this on again and AdGuard's DHCP off.
+      </p>
+    }
     @if (!d.writesEnabled) {
       <p class="panel__body notice notice--info">
         Changing router settings is turned off on the server (ROUTER_WRITES_ENABLED). DHCP settings
